@@ -399,6 +399,24 @@
     <string name="proxies_smart_rarely_used_tip">Редко используемое подключение — вес: %d</string>
     <string name="proxies_smart_no_data">Информация о стабильности подключения ещё не получена</string>
 
+    <!-- Подсказки значка типа прокси (группы/сервисы; протоколы показывают своё имя) -->
+    <string name="proxies_type_selector">Selector — ручной выбор прокси</string>
+    <string name="proxies_type_urltest">URL test — автоматически выбирает самый быстрый прокси</string>
+    <string name="proxies_type_fallback">Fallback — использует первый доступный прокси по порядку</string>
+    <string name="proxies_type_loadbalance">Load balance — распределяет соединения между прокси</string>
+    <string name="proxies_type_relay">Relay — соединяет прокси цепочкой</string>
+    <string name="proxies_type_smart">Smart — выбирает прокси по недавней производительности</string>
+    <string name="proxies_type_direct">Direct — соединение напрямую, без прокси</string>
+    <string name="proxies_type_reject">Reject — блокирует соединение</string>
+    <string name="proxies_type_rejectdrop">Reject (drop) — блокирует соединение без ответа</string>
+    <string name="proxies_type_pass">Pass — пропускает оставшиеся правила для этого соединения</string>
+    <string name="proxies_type_passrule">Pass rule — пропускает оставшиеся правила этого набора</string>
+    <string name="proxies_type_rematch">Rematch — заново проверяет правила с начала</string>
+    <string name="proxies_type_dns">DNS — обрабатывает запрос как DNS, а не проксирует его</string>
+    <string name="proxies_type_compatible">Compatible — пропускает без изменений</string>
+    <string name="proxies_type_protocol">Используется протокол %1$s</string>
+    <string name="proxies_type_unknown">Неизвестный тип</string>
+
     <!-- Converted profile / template selection -->
     <string name="select_template">Выбрать шаблон</string>
     <string name="select_template_desc">Выберите шаблон маршрутизации для этого профиля</string>
@@ -538,6 +556,7 @@
     <string name="renew_subscription">Продлить подписку</string>
     <string name="fetch_error_title">Не удалось обновить</string>
     <string name="fetch_no_connectivity">Нет подключения к интернету. Проверьте соединение и попробуйте снова.</string>
+    <string name="fetch_redirect_downgrade">Провайдер перенаправил запрос на незашифрованный адрес, и запрос отклонён: подписка и данные устройства ушли бы в открытом виде. Это ошибка настройки на стороне провайдера — спросите у него.</string>
     <string name="fetch_host_unreachable">Не удалось подключиться к серверу. Возможно, он временно недоступен или заблокирован в этой сети.</string>
     <string name="fetch_timeout">Сервер не ответил вовремя. Попробуйте позже.</string>
     <string name="fetch_tls_error">Не удалось установить защищённое соединение с сервером.</string>
@@ -585,6 +604,8 @@
     <string name="show_update_progress_summary">Кратковременное уведомление на время обновления подписки</string>
     <string name="show_update_errors">Показывать ошибки обновления</string>
     <string name="show_update_errors_summary">Единственный способ заметить, что подписка молча перестала обновляться</string>
+    <string name="notifications_updater_service_locked">Короткое уведомление «Обновление профиля» отсюда отключить нельзя — Android требует его, пока обновление идёт в фоне. Если обновление проходит быстро, оно не показывается.</string>
+    <string name="notifications_updater_service_channel">Уведомление «Обновление профиля»</string>
     <string name="notifications_subscription_alerts">Напоминания о подписке</string>
     <string name="notify_subscription_alerts">Срок и трафик</string>
     <string name="notify_subscription_alerts_summary">Напоминания о скором и фактическом окончании подписки и о расходе трафика — пороги задаёт панель</string>

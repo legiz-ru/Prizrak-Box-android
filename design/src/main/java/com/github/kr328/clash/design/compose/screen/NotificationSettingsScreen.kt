@@ -20,6 +20,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.PreferenceRow
 import com.github.kr328.clash.design.compose.component.PreferenceScaffold
 import com.github.kr328.clash.design.compose.component.SettingsCategory
 import com.github.kr328.clash.design.compose.component.SwitchPreference
@@ -63,6 +64,7 @@ fun NotificationSettingsScreen(
     notifySubscriptionErrors: Boolean,
     onNotifySubscriptionErrors: (Boolean) -> Unit,
     onOpenErrorsChannelSettings: () -> Unit,
+    onOpenUpdaterServiceChannelSettings: () -> Unit,
     notifySubscriptionAlerts: Boolean,
     onNotifySubscriptionAlerts: (Boolean) -> Unit,
     onOpenSubscriptionAlertsChannelSettings: () -> Unit,
@@ -124,6 +126,27 @@ fun NotificationSettingsScreen(
                 enabled = rowsEnabled,
                 onCheckedChange = onNotifySubscriptionErrors,
                 onOpenChannelSettings = onOpenErrorsChannelSettings,
+            )
+        }
+        // No switch: this one is the foreground-service notification the update
+        // runs under, which Android will not let the app suppress. All that can
+        // be offered is the explanation and a way into the system settings for
+        // its channel, where it can be silenced or hidden outright.
+        item {
+            PreferenceRow(
+                title = stringResource(R.string.notifications_updater_service_channel),
+                summary = stringResource(R.string.open_channel_settings),
+                icon = R.drawable.ic_baseline_settings,
+                enabled = rowsEnabled,
+                onClick = onOpenUpdaterServiceChannelSettings,
+            )
+        }
+        item {
+            Text(
+                text = stringResource(R.string.notifications_updater_service_locked),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
             )
         }
 

@@ -41,6 +41,7 @@ private enum class HwidIssue { None, NotSupported, MaxDevicesReached }
 private sealed class FetchIssue {
     object None : FetchIssue()
     object NoConnectivity : FetchIssue()
+    object RedirectDowngrade : FetchIssue()
     data class HostUnreachable(val detail: String?) : FetchIssue()
     data class Timeout(val detail: String?) : FetchIssue()
     data class TlsError(val detail: String?) : FetchIssue()
@@ -53,6 +54,7 @@ private fun resolveFetchImportIssue(exception: Throwable): FetchIssue {
     while (current != null) {
         when (current) {
             is ProfileProcessor.FetchNoConnectivityException -> return FetchIssue.NoConnectivity
+            is ProfileProcessor.FetchRedirectDowngradeException -> return FetchIssue.RedirectDowngrade
             is ProfileProcessor.FetchHostUnreachableException -> return FetchIssue.HostUnreachable(current.detail)
             is ProfileProcessor.FetchTimeoutException -> return FetchIssue.Timeout(current.detail)
             is ProfileProcessor.FetchTlsErrorException -> return FetchIssue.TlsError(current.detail)
@@ -62,6 +64,7 @@ private fun resolveFetchImportIssue(exception: Throwable): FetchIssue {
         val message = current.message.orEmpty()
         when {
             message.equals("FETCH_NO_CONNECTIVITY", ignoreCase = true) -> return FetchIssue.NoConnectivity
+            message.equals("FETCH_REDIRECT_DOWNGRADE", ignoreCase = true) -> return FetchIssue.RedirectDowngrade
             message.startsWith("FETCH_HOST_UNREACHABLE", ignoreCase = true) -> return FetchIssue.HostUnreachable(null)
             message.startsWith("FETCH_TIMEOUT", ignoreCase = true) -> return FetchIssue.Timeout(null)
             message.startsWith("FETCH_TLS_ERROR", ignoreCase = true) -> return FetchIssue.TlsError(null)
@@ -81,6 +84,7 @@ private suspend fun Context.showFetchErrorImportDialog(issue: FetchIssue) {
 
     val message = when (issue) {
         FetchIssue.NoConnectivity -> getString(com.github.kr328.clash.design.R.string.fetch_no_connectivity)
+        FetchIssue.RedirectDowngrade -> getString(com.github.kr328.clash.design.R.string.fetch_redirect_downgrade)
         is FetchIssue.HostUnreachable -> getString(com.github.kr328.clash.design.R.string.fetch_host_unreachable)
         is FetchIssue.Timeout -> getString(com.github.kr328.clash.design.R.string.fetch_timeout)
         is FetchIssue.TlsError -> getString(com.github.kr328.clash.design.R.string.fetch_tls_error)

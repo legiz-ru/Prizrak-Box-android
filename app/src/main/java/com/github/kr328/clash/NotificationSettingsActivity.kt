@@ -77,6 +77,9 @@ class NotificationSettingsActivity : BaseActivity() {
                     onOpenErrorsChannelSettings = {
                         openSystemNotificationSettings(ProfileWorker.RESULT_CHANNEL)
                     },
+                    onOpenUpdaterServiceChannelSettings = {
+                        openSystemNotificationSettings(ProfileWorker.SERVICE_CHANNEL)
+                    },
                     notifySubscriptionAlerts = notifySubscriptionAlerts,
                     onNotifySubscriptionAlerts = {
                         srvStore.notifySubscriptionAlerts = it

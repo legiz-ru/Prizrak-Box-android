@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -53,6 +54,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.github.kr328.clash.core.model.Proxy
 import com.github.kr328.clash.core.model.ProxyGroup
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.util.ProxyTypeIcons
 import java.util.Locale
 
 private val DelayGreen = Color(0xFF4CAF50)
@@ -487,6 +489,16 @@ internal fun ProxyRow(
     }
     var showWeight by remember { mutableStateOf(false) }
 
+    val typeIconRes = remember(proxy.type, proxy.isGroup) { ProxyTypeIcons.icon(proxy.type, proxy.isGroup) }
+    val typeTooltip = remember(proxy.type, proxy.isGroup) { ProxyTypeIcons.tooltip(context, proxy.type, proxy.isGroup) }
+    // subtitle defaults to the type itself; only worth printing as text when
+    // ui-subtitle-pattern extracted something else from the node's name — the
+    // type is always shown by the icon above regardless.
+    val typeDescription = proxy.subtitle.takeIf {
+        it.isNotEmpty() && !it.equals(proxy.type, ignoreCase = true)
+    }
+    var showTypeTooltip by remember { mutableStateOf(false) }
+
     Card(
         onClick = onClick,
         enabled = enabled,
@@ -513,13 +525,35 @@ internal fun ProxyRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = proxy.subtitle.ifEmpty { proxy.type },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val subtitleTint = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant
+                    Icon(
+                        painter = painterResource(typeIconRes),
+                        contentDescription = typeTooltip,
+                        tint = subtitleTint,
+                        modifier = Modifier
+                            .size(14.dp)
+                            // The row (Card) is already the D-pad focus/activation
+                            // target on TV; without this, this icon becomes a second,
+                            // separate stop a few pixels wide that D-pad nav can land
+                            // on and get stuck on. Touch taps don't need focus, so
+                            // this only removes the D-pad/keyboard path, not the tap.
+                            .focusProperties { canFocus = false }
+                            .clickable { showTypeTooltip = true },
+                    )
+                    if (typeDescription != null) {
+                        Text(
+                            text = typeDescription,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = subtitleTint,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .padding(start = 4.dp),
+                        )
+                    }
+                }
             }
 
             val tint = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant
@@ -555,6 +589,18 @@ internal fun ProxyRow(
                 }
             },
             text = { Text(weightMessage) },
+        )
+    }
+
+    if (showTypeTooltip) {
+        AlertDialog(
+            onDismissRequest = { showTypeTooltip = false },
+            confirmButton = {
+                TextButton(onClick = { showTypeTooltip = false }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            text = { Text(typeTooltip) },
         )
     }
 }

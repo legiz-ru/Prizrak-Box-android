@@ -22,6 +22,7 @@ import com.github.kr328.clash.service.subscription.reportSubscriptionAlerts
 import com.github.kr328.clash.service.util.sendProfileUpdateCompleted
 import com.github.kr328.clash.service.util.sendProfileUpdateFailed
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -56,7 +57,11 @@ class ProfileWorker : BaseService() {
     private val service: ProfileWorker
         get() = this
 
-    private val jobs = mutableListOf<Job>()
+    // A channel rather than a list: onStartCommand fills it from the main thread
+    // while the drain loop below empties it on Dispatchers.Default, and the loop
+    // now decides when to stop the service, so a missed hand-off would drop an
+    // update. receive() also parks until work arrives instead of being polled.
+    private val jobs = Channel<Job>(Channel.UNLIMITED)
 
     override fun onCreate() {
         super.onCreate()
@@ -66,10 +71,16 @@ class ProfileWorker : BaseService() {
         foreground()
 
         launch {
-            delay(TimeUnit.SECONDS.toMillis(10))
-
+            // Take work as it arrives and only wait when there is none. The old
+            // order — sleep ten seconds, then drain — kept the service, and with
+            // it the mandatory foreground notification, alive for at least ten
+            // seconds even for an update that took one. Ten seconds is exactly
+            // the window Android 12+ defers that notification by, so it always
+            // became visible right as the work finished; see foreground().
             while (true) {
-                jobs.removeFirstOrNull()?.join() ?: break
+                val job = withTimeoutOrNull(IDLE_TIMEOUT) { jobs.receive() } ?: break
+
+                job.join()
             }
 
             stopSelf()
@@ -92,7 +103,7 @@ class ProfileWorker : BaseService() {
                         run(it)
                     }
 
-                    jobs.add(job)
+                    jobs.trySend(job)
                 }
             }
             Intents.ACTION_PROFILE_SCHEDULE_UPDATES -> {
@@ -102,7 +113,7 @@ class ProfileWorker : BaseService() {
                     delay(TimeUnit.SECONDS.toMillis(30))
                 }
 
-                jobs.add(job)
+                jobs.trySend(job)
             }
         }
 
@@ -133,14 +144,28 @@ class ProfileWorker : BaseService() {
         reportSubscriptionAlerts(uuid)
     }
 
+    /**
+     * The notification Android demands in return for startForegroundService():
+     * a foreground service that does not call startForeground() within a few
+     * seconds is killed, so unlike every other notification here this one
+     * cannot be put behind a setting.
+     *
+     * It can, however, be kept off screen. FOREGROUND_SERVICE_DEFERRED asks the
+     * platform (Android 12+) to hold it back for ten seconds, and a subscription
+     * refresh normally finishes well inside that — the service stops, the
+     * notification is dropped unshown, and only an update slow enough to be
+     * worth reporting ever reaches the user. Android 11 and below have no such
+     * deferral and show it immediately, as before.
+     */
     private fun foreground() {
         val notification = NotificationCompat.Builder(this, SERVICE_CHANNEL)
             .setContentTitle(getString(R.string.profile_updater))
-            .setContentText(getString(R.string.running))
+            .setContentText(getString(R.string.service_running))
             .setColor(getColorCompat(R.color.color_clash))
             .setSmallIcon(R.drawable.ic_logo_service)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_DEFERRED)
             .build()
 
         startForegroundCompat(R.id.nf_profile_worker, notification)
@@ -227,6 +252,18 @@ class ProfileWorker : BaseService() {
         const val SERVICE_CHANNEL = "profile_service_channel"
         const val STATUS_CHANNEL = "profile_status_channel"
         const val RESULT_CHANNEL = "profile_result_channel"
+
+        /**
+         * How long the service stays up with an empty queue, waiting for the
+         * next request so a burst ("Update all" fires one broadcast per
+         * profile) shares a single instance instead of restarting the service
+         * for each. It is also what the whole run has to fit into to stay
+         * under the notification deferral in [foreground]: five seconds leaves
+         * about as much again for the update itself, which covers the ordinary
+         * refresh, while keeping restarts rare enough not to run into the
+         * background foreground-service start limits.
+         */
+        private val IDLE_TIMEOUT = TimeUnit.SECONDS.toMillis(5)
     }
 
     override fun onBind(intent: Intent?): IBinder {

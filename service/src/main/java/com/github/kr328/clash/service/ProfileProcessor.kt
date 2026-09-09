@@ -72,6 +72,19 @@ object ProfileProcessor {
      *  boundary as the rest of this hierarchy. */
     class FetchHttpErrorException(val code: Int) : FetchFailedException("FETCH_HTTP_ERROR:$code")
 
+    /**
+     * The server tried to redirect an https request to a plain http URL. OkHttp
+     * itself never follows this redirect (see [followSslRedirects] on every
+     * client this file builds) — it hands back the 3xx response instead of the
+     * error a broken/absent Location header would normally produce, so this is
+     * detected explicitly in [throwIfRedirectDowngrade] and reported as its own
+     * reason rather than falling through to [FetchHttpErrorException] with a
+     * plain 3xx code, which would read as a broken link rather than what it
+     * actually is: a provider misconfiguration that would have sent the
+     * subscription and device headers in the clear.
+     */
+    class FetchRedirectDowngradeException : FetchFailedException("FETCH_REDIRECT_DOWNGRADE")
+
     /** Catch-all for a failure that doesn't fit any of the above. */
     class FetchUnknownException(detail: String?) : FetchFailedException("FETCH_UNKNOWN", detail)
 
@@ -107,18 +120,19 @@ object ProfileProcessor {
      */
     fun describeFetchFailureReason(context: Context, reason: String?): String {
         val r = reason.orEmpty()
-        if (r == "FETCH_NO_CONNECTIVITY") return context.getString(R.string.fetch_no_connectivity)
+        if (r == "FETCH_NO_CONNECTIVITY") return context.getString(R.string.fetch_no_connectivity_short)
         if (r == "HWID_NOT_SUPPORTED") return context.getString(R.string.hwid_not_supported_short)
         if (r == "HWID_MAX_DEVICES_REACHED") return context.getString(R.string.hwid_max_devices_short)
         if (r == "AGE_KEY_REQUIRED") return context.getString(R.string.age_key_required_short)
-        if (r.startsWith("FETCH_HOST_UNREACHABLE")) return context.getString(R.string.fetch_host_unreachable)
-        if (r.startsWith("FETCH_TIMEOUT")) return context.getString(R.string.fetch_timeout)
-        if (r.startsWith("FETCH_TLS_ERROR")) return context.getString(R.string.fetch_tls_error)
+        if (r == "FETCH_REDIRECT_DOWNGRADE") return context.getString(R.string.fetch_redirect_downgrade_short)
+        if (r.startsWith("FETCH_HOST_UNREACHABLE")) return context.getString(R.string.fetch_host_unreachable_short)
+        if (r.startsWith("FETCH_TIMEOUT")) return context.getString(R.string.fetch_timeout_short)
+        if (r.startsWith("FETCH_TLS_ERROR")) return context.getString(R.string.fetch_tls_error_short)
         if (r.startsWith("FETCH_HTTP_ERROR")) {
             val code = r.substringAfter(":", "").toIntOrNull() ?: 0
-            return context.getString(R.string.fetch_http_error, code)
+            return context.getString(R.string.fetch_http_error_short, code)
         }
-        if (r.startsWith("FETCH_UNKNOWN")) return context.getString(R.string.fetch_unknown)
+        if (r.startsWith("FETCH_UNKNOWN")) return context.getString(R.string.fetch_unknown_short)
         return r
     }
 
@@ -179,6 +193,26 @@ object ProfileProcessor {
         }
     }
 
+    /**
+     * Every client built below sets followSslRedirects(false), so OkHttp itself
+     * never follows a redirect that changes scheme — including https to plain
+     * http, which would otherwise resend the subscription request (and any HWID
+     * headers on it) in the clear. What comes back instead is the 3xx response
+     * itself; this turns that specific case into [FetchRedirectDowngradeException]
+     * instead of letting it fall through to a generic [FetchHttpErrorException]
+     * with a 3xx code, which would read as a broken link rather than a
+     * misconfigured provider.
+     */
+    private fun throwIfRedirectDowngrade(response: okhttp3.Response) {
+        if (response.code !in 300..399) return
+        val location = response.header("Location") ?: return
+        val target = response.request.url.resolve(location) ?: return
+
+        if (response.request.url.isHttps && !target.isHttps) {
+            throw FetchRedirectDowngradeException()
+        }
+    }
+
     fun buildProfileRequest(context: Context, url: String): Request {
         val uiPrefs = context.getSharedPreferences("ui", Context.MODE_PRIVATE)
         val sendHwid = uiPrefs.getBoolean("send_hwid", true)
@@ -227,6 +261,35 @@ object ProfileProcessor {
     // Fetch helpers
     // -------------------------------------------------------------------------
 
+    /** Caps subscription/config downloads so a misbehaving server can't exhaust storage or memory. */
+    private const val MAX_PROFILE_RESPONSE_BYTES = 32L shl 20 // 32 MiB
+
+    /**
+     * Copies [input] to [output] like [java.io.InputStream.copyTo], but aborts once more than
+     * [limit] bytes have been read — protects against an unbounded or lying Content-Length.
+     */
+    private fun copyLimited(input: java.io.InputStream, output: java.io.OutputStream, limit: Long) {
+        val buffer = ByteArray(8192)
+        var total = 0L
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            total += read
+            if (total > limit) throw FetchUnknownException("Response larger than $limit bytes")
+            output.write(buffer, 0, read)
+        }
+    }
+
+    /**
+     * Reads [body] fully into a String like [okhttp3.ResponseBody.string], but aborts once more
+     * than [limit] bytes have been read.
+     */
+    private fun stringLimited(body: okhttp3.ResponseBody, limit: Long): String {
+        val out = java.io.ByteArrayOutputStream()
+        body.byteStream().use { input -> copyLimited(input, out, limit) }
+        return out.toString(body.contentType()?.charset(Charsets.UTF_8)?.name() ?: "UTF-8")
+    }
+
     private fun prefetchProfileConfig(context: Context, source: String, targetConfigFile: File): PrefetchResult {
         if (!hasActiveConnectivity(context)) {
             throw FetchNoConnectivityException()
@@ -237,10 +300,12 @@ object ProfileProcessor {
             val client = OkHttpClient.Builder()
                 .connectTimeout(20, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
+                .followSslRedirects(false)
                 .build()
 
             client.newCall(request).execute().use { response ->
                 throwIfHwidBlocked(response.headers)
+                throwIfRedirectDowngrade(response)
 
                 if (!response.isSuccessful) throw FetchHttpErrorException(response.code)
 
@@ -248,7 +313,7 @@ object ProfileProcessor {
                 targetConfigFile.parentFile?.mkdirs()
                 targetConfigFile.outputStream().use { output ->
                     body.byteStream().use { input ->
-                        input.copyTo(output)
+                        copyLimited(input, output, MAX_PROFILE_RESPONSE_BYTES)
                     }
                 }
                 return PrefetchResult(response.headers)
@@ -285,14 +350,17 @@ object ProfileProcessor {
             val client = OkHttpClient.Builder()
                 .connectTimeout(20, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
+                .followSslRedirects(false)
                 .build()
             client.newCall(request).execute().use { response ->
                 throwIfHwidBlocked(response.headers)
+                throwIfRedirectDowngrade(response)
 
                 if (!response.isSuccessful) {
                     throw FetchHttpErrorException(response.code)
                 }
-                val body = response.body?.string() ?: throw FetchUnknownException("Empty response body")
+                val responseBody = response.body ?: throw FetchUnknownException("Empty response body")
+                val body = stringLimited(responseBody, MAX_PROFILE_RESPONSE_BYTES)
                 val pxaTemplateUrl = response.headers["pxa-template"]?.trim()?.ifBlank { null }
                 val pxaTemplateScheme = response.headers["pxa-template-scheme"]?.trim()?.ifBlank { null }
                 // Template selection is allowed unless the server locks it via pxa-template.
@@ -362,6 +430,7 @@ object ProfileProcessor {
     private fun probeEndpoint(context: Context, candidates: List<String>): ProbeResult? {
         val client = OkHttpClient.Builder()
             .callTimeout(9, TimeUnit.SECONDS)
+            .followSslRedirects(false)
             .build()
         for (url in candidates) {
             try {
@@ -459,6 +528,7 @@ object ProfileProcessor {
             val client = OkHttpClient.Builder()
                 .connectTimeout(20, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
+                .followSslRedirects(false)
                 .build()
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
@@ -1491,6 +1561,7 @@ object ProfileProcessor {
                     .connectTimeout(3, TimeUnit.SECONDS)
                     .readTimeout(3, TimeUnit.SECONDS)
                     .callTimeout(3, TimeUnit.SECONDS)
+                    .followSslRedirects(false)
                     .build()
                 val baseRequest = buildProfileRequest(context, url)
 
