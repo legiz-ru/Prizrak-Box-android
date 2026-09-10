@@ -10,11 +10,11 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/metacubex/mihomo => github.com/legiz-ru/moshen v1.19.30-smart-muxcool-moshen.0.20260909162212-b67482c33675
+replace github.com/metacubex/mihomo => github.com/legiz-ru/moshen v1.19.30-smart-jesus-moshen
 
 replace google.golang.org/protobuf => github.com/metacubex/protobuf-go v0.0.0-20260306035419-7ceee0674686
 
-replace github.com/metacubex/utls => github.com/metacubex/utls v0.0.0-20260726054410-2aa631698733
+replace github.com/metacubex/utls => github.com/legiz-ru/prizrak-utls v0.0.0-20260910212848-3f04c65b692b
 
 require (
 	github.com/RyuaNerin/go-krypto v1.3.0 // indirect
