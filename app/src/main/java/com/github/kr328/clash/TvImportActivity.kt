@@ -2,7 +2,6 @@ package com.github.kr328.clash
 
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.graphics.Color
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -13,11 +12,9 @@ import com.github.kr328.clash.design.compose.theme.ClashTheme
 import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
 import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.tv.TvImportServer
+import com.github.kr328.clash.util.generateQrCode
 import com.github.kr328.clash.util.importProfileFromUrl
 import com.github.kr328.clash.util.withProfile
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.MultiFormatWriter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -155,18 +152,6 @@ class TvImportActivity : BaseActivity() {
             ?.filterNot { it.isLoopbackAddress }
             ?.firstOrNull()
             ?.hostAddress
-
-    private fun generateQrCode(content: String, size: Int): Bitmap {
-        val hints = mapOf(EncodeHintType.MARGIN to 1)
-        val matrix = MultiFormatWriter().encode(content, BarcodeFormat.QR_CODE, size, size, hints)
-        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        for (x in 0 until size) {
-            for (y in 0 until size) {
-                bmp.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
-            }
-        }
-        return bmp
-    }
 
     private fun currentThemeVariant(): ClashThemeVariant {
         val cfg = resources.configuration

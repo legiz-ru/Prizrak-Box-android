@@ -51,7 +51,7 @@ jobs:
           cd ${{ github.workspace }}/core/src/foss/golang
           GONOSUMDB=github.com/snakem982/mihomo go mod tidy
           cd ${{ github.workspace }}/core/src/main/golang
-          GONOSUMDB=github.com/snakem982/mihomo go mod tidy
+          GONOSUMDB=github.com/legiz-ru/moshen go mod tidy
 
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
