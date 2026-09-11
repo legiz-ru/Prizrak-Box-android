@@ -14,7 +14,7 @@ replace github.com/metacubex/mihomo => github.com/legiz-ru/moshen v1.19.30-smart
 
 replace google.golang.org/protobuf => github.com/metacubex/protobuf-go v0.0.0-20260306035419-7ceee0674686
 
-replace github.com/metacubex/utls => github.com/legiz-ru/prizrak-utls v0.0.0-20260910212848-3f04c65b692b
+replace github.com/metacubex/utls => github.com/legiz-ru/prizrak-utls v0.0.0-20260910220934-80ad70380fe8
 
 require (
 	github.com/RyuaNerin/go-krypto v1.3.0 // indirect
