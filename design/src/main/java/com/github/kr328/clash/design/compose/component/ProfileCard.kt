@@ -204,13 +204,25 @@ fun ProfileCard(
                     CardActionIcon(R.drawable.ic_mdi_bullhorn_variant_outline, null, onAnnounce)
                 }
                 if (profile.renewUrl.isNotEmpty()) {
-                    CardActionIcon(R.drawable.ic_mdi_credit_card_outline, null, onRenew)
+                    CardActionIcon(
+                        R.drawable.ic_mdi_credit_card_outline,
+                        stringResource(R.string.renew_subscription),
+                        onRenew,
+                    )
                 }
                 if (profile.supportUrl.isNotEmpty()) {
-                    CardActionIcon(R.drawable.ic_mdi_face_agent, null, onSupport)
+                    CardActionIcon(
+                        R.drawable.ic_mdi_face_agent,
+                        stringResource(R.string.contact_support),
+                        onSupport,
+                    )
                 }
                 if (profile.profileWebPageUrl.isNotEmpty()) {
-                    CardActionIcon(R.drawable.ic_mdi_home_import_outline, null, onWebPage)
+                    CardActionIcon(
+                        R.drawable.ic_mdi_home_import_outline,
+                        stringResource(R.string.provider_website),
+                        onWebPage,
+                    )
                 }
                 CardActionIcon(R.drawable.ic_baseline_edit, stringResource(R.string.edit), onEdit)
                 CardActionIcon(R.drawable.ic_baseline_delete, stringResource(R.string.delete), onDelete)

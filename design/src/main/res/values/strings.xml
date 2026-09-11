@@ -590,6 +590,11 @@
     <string name="subscription_alert_info_traffic">Traffic reminder: at %1$s%% of traffic used.</string>
     <string name="subscription_alert_info_disabled_locally">Showing these reminders is currently turned off in the app\'s notification settings.</string>
     <string name="renew_subscription">Renew subscription</string>
+    <string name="contact_support">Contact support</string>
+    <string name="provider_website">Provider website</string>
+    <string name="tv_url_qr_scan_hint">Scan with your phone, or copy the link below</string>
+    <string name="tv_url_qr_copy">Copy link</string>
+    <string name="tv_url_qr_copied">Link copied</string>
     <string name="fetch_error_title">Update failed</string>
     <string name="fetch_no_connectivity">No internet connection. Check your connection and try again.</string>
     <string name="fetch_redirect_downgrade">The provider redirected the request to an unencrypted address, so it was refused: the subscription and device details would have travelled in the clear. This is a misconfiguration on the provider side — ask them about it.</string>

@@ -554,6 +554,11 @@
     <string name="subscription_alert_info_traffic">Напоминание о трафике: при использовании %1$s%% трафика.</string>
     <string name="subscription_alert_info_disabled_locally">Показ таких уведомлений сейчас выключен в настройках приложения.</string>
     <string name="renew_subscription">Продлить подписку</string>
+    <string name="contact_support">Связаться с поддержкой</string>
+    <string name="provider_website">Сайт провайдера</string>
+    <string name="tv_url_qr_scan_hint">Отсканируйте телефоном или скопируйте ссылку ниже</string>
+    <string name="tv_url_qr_copy">Скопировать ссылку</string>
+    <string name="tv_url_qr_copied">Ссылка скопирована</string>
     <string name="fetch_error_title">Не удалось обновить</string>
     <string name="fetch_no_connectivity">Нет подключения к интернету. Проверьте соединение и попробуйте снова.</string>
     <string name="fetch_redirect_downgrade">Провайдер перенаправил запрос на незашифрованный адрес, и запрос отклонён: подписка и данные устройства ушли бы в открытом виде. Это ошибка настройки на стороне провайдера — спросите у него.</string>

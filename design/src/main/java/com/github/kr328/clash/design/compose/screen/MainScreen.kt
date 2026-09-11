@@ -549,13 +549,25 @@ private fun MainProfileCard(
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     if (renewUrl.isNotEmpty()) {
-                        MainCardIcon(R.drawable.ic_mdi_credit_card_outline, null, { onRenew(renewUrl) })
+                        MainCardIcon(
+                            R.drawable.ic_mdi_credit_card_outline,
+                            stringResource(R.string.renew_subscription),
+                            { onRenew(renewUrl) },
+                        )
                     }
                     if (supportUrl.isNotEmpty()) {
-                        MainCardIcon(R.drawable.ic_mdi_face_agent, null, { onSupport(supportUrl) })
+                        MainCardIcon(
+                            R.drawable.ic_mdi_face_agent,
+                            stringResource(R.string.contact_support),
+                            { onSupport(supportUrl) },
+                        )
                     }
                     if (webPageUrl.isNotEmpty()) {
-                        MainCardIcon(R.drawable.ic_mdi_home_import_outline, null, { onWebPage(webPageUrl) })
+                        MainCardIcon(
+                            R.drawable.ic_mdi_home_import_outline,
+                            stringResource(R.string.provider_website),
+                            { onWebPage(webPageUrl) },
+                        )
                     }
                 }
             }

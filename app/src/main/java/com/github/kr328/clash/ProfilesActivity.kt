@@ -15,12 +15,14 @@ import com.github.kr328.clash.common.util.setUUID
 import com.github.kr328.clash.common.util.ticker
 import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.component.AddProfileAction
+import com.github.kr328.clash.design.compose.component.UrlQrDialog
 import com.github.kr328.clash.design.compose.screen.ProfilesScreen
 import com.github.kr328.clash.design.compose.screen.SettingsNavTarget
 import com.github.kr328.clash.design.compose.theme.ClashTheme
 import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
 import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.service.model.Profile
+import com.github.kr328.clash.util.UrlOpener
 import com.github.kr328.clash.util.importProfileFromUrl
 import com.github.kr328.clash.util.sendProfileToTv
 import com.github.kr328.clash.util.startClashService
@@ -46,6 +48,8 @@ class ProfilesActivity : BaseActivity() {
     private val updatingFlow = MutableStateFlow<Set<UUID>>(emptySet())
     private val allUpdatingFlow = MutableStateFlow(false)
     private val runningFlow = MutableStateFlow(false)
+
+    private val urlOpener by lazy { UrlOpener(this) }
 
     private val scanLauncher = registerForActivityResult(ScanQRCode()) { result ->
         lifecycleScope.launch {
@@ -79,8 +83,18 @@ class ProfilesActivity : BaseActivity() {
             val updating by updatingFlow.collectAsStateWithLifecycle()
             val allUpdating by allUpdatingFlow.collectAsStateWithLifecycle()
             val running by runningFlow.collectAsStateWithLifecycle()
+            val urlQrDialog by urlOpener.dialogState.collectAsStateWithLifecycle()
 
             ClashTheme(variant = currentThemeVariant()) {
+                urlQrDialog?.let { state ->
+                    UrlQrDialog(
+                        title = state.title,
+                        url = state.url,
+                        qr = state.qr,
+                        onCopyLink = { urlOpener.copyLink() },
+                        onDismiss = { urlOpener.dismiss() },
+                    )
+                }
                 ProfilesScreen(
                     expanded = useDrawerNav(),
                     clashRunning = running,
@@ -95,9 +109,9 @@ class ProfilesActivity : BaseActivity() {
                     onProfileClick = ::activate,
                     onProfileUpdate = ::updateProfile,
                     onProfileAnnounce = ::showAnnounce,
-                    onProfileSupport = { openUrl(it.supportUrl) },
-                    onProfileWebPage = { openUrl(it.profileWebPageUrl) },
-                    onProfileRenew = { openUrl(it.renewUrl) },
+                    onProfileSupport = { urlOpener.open(it.supportUrl, getString(R.string.contact_support)) },
+                    onProfileWebPage = { urlOpener.open(it.profileWebPageUrl, getString(R.string.provider_website)) },
+                    onProfileRenew = { urlOpener.open(it.renewUrl, getString(R.string.renew_subscription)) },
                     onProfileEdit = { startActivity(PropertiesActivity::class.intent.setUUID(it.uuid)) },
                     onProfileDelete = ::confirmDelete,
                     onNavigate = ::navigate,
@@ -217,16 +231,6 @@ class ProfilesActivity : BaseActivity() {
             .setMessage(profile.announce.replace("\\n", "\n"))
             .setPositiveButton(R.string.ok, null)
             .show()
-    }
-
-    private fun openUrl(url: String) {
-        if (url.isEmpty()) return
-        try {
-            startActivity(
-                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-            )
-        } catch (_: Exception) {
-        }
     }
 
     private fun navigate(target: SettingsNavTarget) {
