@@ -12,6 +12,7 @@ import com.github.kr328.clash.common.util.setUUID
 import com.github.kr328.clash.common.util.uuid
 import com.github.kr328.clash.core.model.FetchStatus
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.UrlQrDialog
 import com.github.kr328.clash.design.compose.screen.PropertiesScreen
 import com.github.kr328.clash.design.compose.theme.ClashTheme
 import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
@@ -30,6 +31,7 @@ import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.service.util.pendingDir
 import com.github.kr328.clash.util.GetContentCompat
+import com.github.kr328.clash.util.UrlOpener
 import com.github.kr328.clash.util.withProfile
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.github.g00fy2.quickie.QRResult
@@ -61,6 +63,8 @@ class PropertiesActivity : BaseActivity() {
     private val profile: Profile
         get() = profileFlow.value!!
 
+    private val urlOpener by lazy { UrlOpener(this) }
+
     private val qrScanLauncher = registerForActivityResult(ScanQRCode()) { result ->
         when (result) {
             is QRResult.QRSuccess -> {
@@ -90,6 +94,16 @@ class PropertiesActivity : BaseActivity() {
                 val current by profileFlow.collectAsStateWithLifecycle()
                 val proxyLinks by proxyLinksFlow.collectAsStateWithLifecycle()
                 val processing by processingFlow.collectAsStateWithLifecycle()
+                val urlQrDialog by urlOpener.dialogState.collectAsStateWithLifecycle()
+                urlQrDialog?.let { state ->
+                    UrlQrDialog(
+                        title = state.title,
+                        url = state.url,
+                        qr = state.qr,
+                        onCopyLink = { urlOpener.copyLink() },
+                        onDismiss = { urlOpener.dismiss() },
+                    )
+                }
                 current?.let { p ->
                     PropertiesScreen(
                         profile = p,
@@ -102,7 +116,7 @@ class PropertiesActivity : BaseActivity() {
                         onEditInterval = { launch { inputInterval() } },
                         onEditAgeKey = { launch { inputAgeKey() } },
                         onShowSubscriptionAlertInfo = { showSubscriptionAlertInfoDialog(p) },
-                        onRenewSubscription = { openUrl(p.renewUrl) },
+                        onRenewSubscription = { urlOpener.open(p.renewUrl, getString(R.string.renew_subscription)) },
                         onBrowseFiles = { startActivity(FilesActivity::class.intent.setUUID(uuid)) },
                         onSelectTemplate = { launch { selectAndApplyTemplate() } },
                         onAddProxyLinks = { launch { addProxyLinks() } },
@@ -480,14 +494,6 @@ class PropertiesActivity : BaseActivity() {
                     .show()
                 cont.invokeOnCancellation { dialog.dismiss() }
             }
-        }
-    }
-
-    private fun openUrl(url: String) {
-        if (url.isEmpty()) return
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        } catch (_: Exception) {
         }
     }
 

@@ -29,6 +29,7 @@ import com.github.kr328.clash.core.model.ProxyGroup
 import com.github.kr328.clash.core.model.TunnelState
 import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.component.AddProfileAction
+import com.github.kr328.clash.design.compose.component.UrlQrDialog
 import com.github.kr328.clash.design.compose.screen.MainScreen
 import com.github.kr328.clash.design.compose.screen.SettingsNavTarget
 import com.github.kr328.clash.design.compose.theme.ClashTheme
@@ -40,6 +41,7 @@ import com.github.kr328.clash.service.data.ImportedDao
 import com.github.kr328.clash.service.subscription.EXTRA_SUBSCRIPTION_ALERT_KIND
 import com.github.kr328.clash.service.subscription.EXTRA_SUBSCRIPTION_ALERT_UUID
 import com.github.kr328.clash.service.subscription.reportSubscriptionAlerts
+import com.github.kr328.clash.util.UrlOpener
 import com.github.kr328.clash.util.applyDynamicShortcuts
 import com.github.kr328.clash.util.importProfileFromUrl
 import com.github.kr328.clash.util.startClashService
@@ -102,6 +104,8 @@ class MainActivity : BaseActivity() {
     /** Shows the in-app "why we need this" dialog ahead of the system permission prompt. */
     private val notificationPromptFlow = MutableStateFlow(false)
 
+    private val urlOpener by lazy { UrlOpener(this) }
+
     private fun extractInstallConfigUrl(intent: Intent?): String? {
         if (intent?.action != Intent.ACTION_VIEW) return null
         val data = intent.data ?: return null
@@ -142,6 +146,7 @@ class MainActivity : BaseActivity() {
             val useDots by useDotsFlow.collectAsStateWithLifecycle()
             val testingProxies by testingProxiesFlow.collectAsStateWithLifecycle()
             val notificationPrompt by notificationPromptFlow.collectAsStateWithLifecycle()
+            val urlQrDialog by urlOpener.dialogState.collectAsStateWithLifecycle()
 
             ClashTheme(variant = currentThemeVariant()) {
                 if (notificationPrompt) {
@@ -149,6 +154,15 @@ class MainActivity : BaseActivity() {
                         onAllow = ::allowNotifications,
                         onSkip = ::skipNotifications,
                         onDismiss = { notificationPromptFlow.value = false },
+                    )
+                }
+                urlQrDialog?.let { state ->
+                    UrlQrDialog(
+                        title = state.title,
+                        url = state.url,
+                        qr = state.qr,
+                        onCopyLink = { urlOpener.copyLink() },
+                        onDismiss = { urlOpener.dismiss() },
                     )
                 }
                 MainScreen(
@@ -170,9 +184,9 @@ class MainActivity : BaseActivity() {
                     onModeSelector = ::openModeSelector,
                     onOpenConnections = { startActivity(ConnectionsActivity::class.intent) },
                     onOpenProviders = { startActivity(ProvidersActivity::class.intent) },
-                    onOpenSupport = ::openUrl,
-                    onOpenWebPage = ::openUrl,
-                    onOpenRenew = ::openUrl,
+                    onOpenSupport = { urlOpener.open(it, getString(R.string.contact_support)) },
+                    onOpenWebPage = { urlOpener.open(it, getString(R.string.provider_website)) },
+                    onOpenRenew = { urlOpener.open(it, getString(R.string.renew_subscription)) },
                     onAdd = ::add,
                     onNavigate = ::navigate,
                     onLatencyTest = ::latencyTestSimpleMode,
@@ -495,14 +509,6 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    private fun openUrl(url: String) {
-        if (url.isEmpty()) return
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-        } catch (_: Exception) {
-        }
-    }
-
     private fun toast(resId: Int) {
         Toast.makeText(this, resId, Toast.LENGTH_LONG).show()
     }
@@ -567,7 +573,9 @@ class MainActivity : BaseActivity() {
             .setMessage(message)
             .setNegativeButton(R.string.ok, null)
         if (profile.renewUrl.isNotEmpty()) {
-            builder.setPositiveButton(R.string.renew_subscription) { _, _ -> openUrl(profile.renewUrl) }
+            builder.setPositiveButton(R.string.renew_subscription) { _, _ ->
+                urlOpener.open(profile.renewUrl, getString(R.string.renew_subscription))
+            }
         }
         builder.show()
     }
