@@ -1,8 +1,6 @@
 package com.github.kr328.clash
 
-import android.content.Intent
 import android.content.res.Configuration
-import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
@@ -565,12 +563,7 @@ class PropertiesActivity : BaseActivity() {
                     .setNegativeButton(R.string.cancel) { _, _ -> cont.resume(Unit) }
                     .setNeutralButton(if (supportUrl.isEmpty()) R.string.hwid_docs_btn else R.string.hwid_support_btn) { _, _ ->
                         cont.resume(Unit)
-                        try {
-                            startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(linkUrl))
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        } catch (_: Exception) {}
+                        urlOpener.open(linkUrl, getString(R.string.contact_support))
                     }
                     .setOnCancelListener { if (cont.isActive) cont.resume(Unit) }
                     .show()
@@ -677,12 +670,7 @@ class PropertiesActivity : BaseActivity() {
                 if (supportUrl.isNotEmpty()) {
                     builder.setNeutralButton(R.string.hwid_support_btn) { _, _ ->
                         cont.resume(Unit)
-                        try {
-                            startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(supportUrl))
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        } catch (_: Exception) {}
+                        urlOpener.open(supportUrl, getString(R.string.contact_support))
                     }
                 }
                 val dialog = builder.show()
