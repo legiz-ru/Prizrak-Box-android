@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       moshen_version:
-        description: 'legiz-ru/moshen version tag (e.g. v1.1.17-moshen-splithttp). Leave empty to auto-detect latest release.'
+        description: 'legiz-ru/Prizrak-Core version tag (e.g. v1.1.17-moshen-splithttp). Leave empty to auto-detect latest release.'
         required: false
         default: ''
 
@@ -36,7 +36,7 @@ jobs:
           if [ -n "$INPUT" ]; then
             echo "version=$INPUT" >> "$GITHUB_OUTPUT"
           else
-            LATEST=$(curl -sf "https://api.github.com/repos/legiz-ru/moshen/releases/latest" \
+            LATEST=$(curl -sf "https://api.github.com/repos/legiz-ru/Prizrak-Core/releases/latest" \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               | jq -r '.tag_name')
             echo "version=$LATEST" >> "$GITHUB_OUTPUT"
@@ -45,7 +45,7 @@ jobs:
       - name: Pin new moshen version in go.mod files
         run: |
           NEW_VERSION="${{ steps.resolve.outputs.version }}"
-          sed -i "s|replace github.com/metacubex/mihomo => github.com/legiz-ru/moshen .*|replace github.com/metacubex/mihomo => github.com/legiz-ru/moshen $NEW_VERSION|g" \
+          sed -i "s|replace github.com/metacubex/mihomo => github.com/legiz-ru/Prizrak-Core .*|replace github.com/metacubex/mihomo => github.com/legiz-ru/Prizrak-Core $NEW_VERSION|g" \
             core/src/foss/golang/go.mod \
             core/src/main/golang/go.mod
           echo "Pinned moshen to $NEW_VERSION"
@@ -55,12 +55,12 @@ jobs:
       - name: Update Foss Gomod
         run: |
           cd ${{ github.workspace }}/core/src/foss/golang/
-          GONOSUMDB=github.com/legiz-ru/moshen go mod tidy
+          GONOSUMDB=github.com/legiz-ru/Prizrak-Core go mod tidy
 
       - name: Update Main Gomod
         run: |
           cd ${{ github.workspace }}/core/src/main/golang/
-          GONOSUMDB=github.com/legiz-ru/moshen go mod tidy
+          GONOSUMDB=github.com/legiz-ru/Prizrak-Core go mod tidy
 
       - name: Create Pull Request
         id: cpr
@@ -73,7 +73,7 @@ jobs:
           title: "Update moshen to ${{ steps.resolve.outputs.version }}"
           draft: false
           body: |
-            - Update Moshen Core (legiz-ru/moshen) → `${{ steps.resolve.outputs.version }}`
+            - Update Prizrak-Core (legiz-ru/Prizrak-Core) → `${{ steps.resolve.outputs.version }}`
             - Update Go Module Dependencies
           labels: |
             Update

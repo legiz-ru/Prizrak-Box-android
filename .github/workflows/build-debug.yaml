@@ -53,7 +53,7 @@ jobs:
           cd ${{ github.workspace }}/core/src/foss/golang
           GONOSUMDB=github.com/snakem982/mihomo go mod tidy
           cd ${{ github.workspace }}/core/src/main/golang
-          GONOSUMDB=github.com/legiz-ru/moshen go mod tidy
+          GONOSUMDB=github.com/legiz-ru/Prizrak-Core go mod tidy
 
       # - name: Signing properties
       #   env:

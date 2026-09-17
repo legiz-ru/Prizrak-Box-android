@@ -234,8 +234,8 @@
     <string name="moshen_core_url" translatable="false">https://github.com/snakem982/mihomo/tree/moshen/</string>
     <string name="mihomo_smart_core">Mihomo Smart Core</string>
     <string name="mihomo_smart_core_url" translatable="false">https://github.com/vernesong/mihomo/releases</string>
-    <string name="moshen_fork_core">Ядро moshen fork</string>
-    <string name="moshen_fork_core_url" translatable="false">https://github.com/legiz-ru/moshen/releases</string>
+    <string name="moshen_fork_core">Ядро Prizrak-Core</string>
+    <string name="moshen_fork_core_url" translatable="false">https://github.com/legiz-ru/Prizrak-Core/releases</string>
     <string name="cmfa_origin">CMFA</string>
     <string name="cmfa_origin_url" translatable="false">https://github.com/MetaCubeX/ClashMetaForAndroid</string>
 
@@ -263,6 +263,7 @@
     <string name="tun_stack_system">System Stack</string>
     <string name="tun_stack_gvisor">Gvisor Stack</string>
     <string name="tun_stack_mixed">Mixed Stack</string>
+    <string name="tun_stack_mips">Mips Stack</string>
 
     <string name="allow_all_apps">Allow all apps</string>
     <string name="allow_selected_apps">Allow selected apps</string>

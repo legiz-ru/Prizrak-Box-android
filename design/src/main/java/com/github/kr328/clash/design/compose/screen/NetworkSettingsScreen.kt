@@ -42,6 +42,7 @@ fun NetworkSettingsScreen(
         "system" to stringResource(R.string.tun_stack_system),
         "gvisor" to stringResource(R.string.tun_stack_gvisor),
         "mixed" to stringResource(R.string.tun_stack_mixed),
+        "mips" to stringResource(R.string.tun_stack_mips),
     )
 
     PreferenceScaffold(title = stringResource(R.string.network), onBack = onBack) {
