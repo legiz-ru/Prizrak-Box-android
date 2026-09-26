@@ -10,7 +10,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/metacubex/mihomo => github.com/legiz-ru/Prizrak-Core v1.19.31
+replace github.com/metacubex/mihomo => github.com/legiz-ru/Prizrak-Core v1.19.31-r2
 
 replace google.golang.org/protobuf => github.com/metacubex/protobuf-go v0.0.0-20260306035419-7ceee0674686
 
@@ -149,3 +149,5 @@ require (
 	golang.org/x/tools v0.24.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
+
+replace github.com/metacubex/http => github.com/legiz-ru/prizrak-http v0.0.0-20260926183116-34b73fbddb13
