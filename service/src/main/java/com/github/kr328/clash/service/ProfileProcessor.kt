@@ -219,7 +219,7 @@ object ProfileProcessor {
         val versionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName
 
         val builder = Request.Builder().url(url)
-        builder.header("User-Agent", "Clash-Meta/Prizrak-Box (Android Build $versionName)")
+        builder.header("User-Agent", "Clash-Meta/Prizrak-Box (Android Build $versionName Prizrak-Core ${BuildConfig.CORE_VERSION})")
 
         if (sendHwid) {
             val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
@@ -564,7 +564,7 @@ object ProfileProcessor {
     ): String {
         val versionName = context.packageManager
             .getPackageInfo(context.packageName, 0).versionName
-        val userAgent = "Clash-Meta/Prizrak-Box (Android Build $versionName)"
+        val userAgent = "Clash-Meta/Prizrak-Box (Android Build $versionName Prizrak-Core ${BuildConfig.CORE_VERSION})"
         val uiPrefs = context.getSharedPreferences("ui", Context.MODE_PRIVATE)
         val sendHwid = uiPrefs.getBoolean("send_hwid", true)
 
