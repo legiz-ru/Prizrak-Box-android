@@ -10,7 +10,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/metacubex/mihomo => github.com/legiz-ru/Prizrak-Core v1.19.31-r2
+replace github.com/metacubex/mihomo => github.com/legiz-ru/Prizrak-Core v1.19.31-r3
 
 replace google.golang.org/protobuf => github.com/metacubex/protobuf-go v0.0.0-20260306035419-7ceee0674686
 
