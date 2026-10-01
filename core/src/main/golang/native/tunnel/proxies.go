@@ -404,6 +404,16 @@ func PatchSelector(selector, name string) bool {
 // groupCheckOptions). It matters: the delay is stored per URL, so reading it by
 // any other URL shows nothing for a group that overrides `url:`. When it is
 // empty the old heuristic is used — the first URL the proxy has a history for.
+//
+// A proxy sourced from a proxy-providers entry is actually health-checked by
+// its own provider, under that provider's own `health-check: url:` — which can
+// differ from groupTestURL when a group mixes proxies from several providers
+// (groupCheckOptions only resolves to one URL per group: its own `url:`, or
+// else the first provider's). Reading strictly by groupTestURL then finds no
+// history for that proxy and shows it as never tested, even though it has
+// been — just under a different URL key. If so, fall back to whichever URL the
+// proxy itself actually has a recorded test for, the same way mihomo's own
+// /proxies API does (it reports the proxy's last test regardless of URL).
 func convertProxies(proxies []C.Proxy, uiSubtitlePattern *regexp2.Regexp, groupTestURL string) []*Proxy {
 	result := make([]*Proxy, 0, 128)
 
@@ -425,9 +435,20 @@ func convertProxies(proxies []C.Proxy, uiSubtitlePattern *regexp2.Regexp, groupT
 		testURL := groupTestURL
 		if testURL == "" {
 			testURL = C.DefaultTestURL
-			for k := range p.ExtraDelayHistories() {
-				if len(k) > 0 {
+		}
+
+		// A failed test is recorded too (URLTest stores an entry with a zero
+		// delay), so a non-empty history means the proxy WAS tested — which is
+		// what tells a timeout apart from "never checked".
+		tested := len(p.DelayHistoryForTestUrl(testURL)) > 0
+
+		// Not tested under testURL: fall back to any URL the proxy itself has
+		// an actual recorded test for (see the fallback note on this function).
+		if !tested {
+			for k, state := range p.ExtraDelayHistories() {
+				if len(k) > 0 && len(state.History) > 0 {
 					testURL = k
+					tested = true
 					break
 				}
 			}
@@ -442,10 +463,7 @@ func convertProxies(proxies []C.Proxy, uiSubtitlePattern *regexp2.Regexp, groupT
 			Type:     p.Type().String(),
 			IsGroup:  isGroup,
 			Delay:    int(p.LastDelayForTestUrl(testURL)),
-			// A failed test is recorded too (URLTest stores an entry with a zero
-			// delay), so a non-empty history means the proxy WAS tested — which is
-			// what tells a timeout apart from "never checked".
-			Tested: len(p.DelayHistoryForTestUrl(testURL)) > 0,
+			Tested:   tested,
 		})
 	}
 	return result
