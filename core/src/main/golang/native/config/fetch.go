@@ -26,8 +26,20 @@ type Status struct {
 	MaxProgress int      `json:"max"`
 }
 
+// userAgent is `prizrak-box/{versionName} (Android Build)`. The version stands
+// right after the slash because the Remnawave panel recognises the client by
+// the `^prizrak-box/` prefix, so it is "unknown" rather than empty.
+func userAgent() string {
+	version := app.VersionName()
+	if version == "" {
+		version = "unknown"
+	}
+
+	return "prizrak-box/" + version + " (Android Build)"
+}
+
 func openUrl(ctx context.Context, url string) (io.ReadCloser, error) {
-	response, err := clashHttp.HttpRequest(ctx, url, http.MethodGet, http.Header{"User-Agent": {"Clash-Meta/Prizrak-Box (Android Build " + app.VersionName() + ")"}}, nil)
+	response, err := clashHttp.HttpRequest(ctx, url, http.MethodGet, http.Header{"User-Agent": {userAgent()}}, nil)
 
 	if err != nil {
 		return nil, err

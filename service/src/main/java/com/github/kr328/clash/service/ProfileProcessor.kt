@@ -12,6 +12,7 @@ import com.github.kr328.clash.service.data.PendingDao
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.service.remote.IFetchObserver
 import com.github.kr328.clash.service.store.ServiceStore
+import com.github.kr328.clash.service.util.buildUserAgent
 import com.github.kr328.clash.service.util.importedDir
 import com.github.kr328.clash.service.util.pendingDir
 import com.github.kr328.clash.service.util.processingDir
@@ -219,7 +220,7 @@ object ProfileProcessor {
         val versionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName
 
         val builder = Request.Builder().url(url)
-        builder.header("User-Agent", "Clash-Meta/Prizrak-Box (Android Build $versionName Prizrak-Core ${BuildConfig.CORE_VERSION})")
+        builder.header("User-Agent", buildUserAgent(versionName, BuildConfig.CORE_VERSION))
 
         if (sendHwid) {
             val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
@@ -564,7 +565,7 @@ object ProfileProcessor {
     ): String {
         val versionName = context.packageManager
             .getPackageInfo(context.packageName, 0).versionName
-        val userAgent = "Clash-Meta/Prizrak-Box (Android Build $versionName Prizrak-Core ${BuildConfig.CORE_VERSION})"
+        val userAgent = buildUserAgent(versionName, BuildConfig.CORE_VERSION)
         val uiPrefs = context.getSharedPreferences("ui", Context.MODE_PRIVATE)
         val sendHwid = uiPrefs.getBoolean("send_hwid", true)
 

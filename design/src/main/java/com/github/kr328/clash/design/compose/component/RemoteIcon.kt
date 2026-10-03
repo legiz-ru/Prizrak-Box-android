@@ -2,7 +2,6 @@ package com.github.kr328.clash.design.compose.component
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -11,10 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.net.URL
+import com.github.kr328.clash.service.util.ProfileLogoLoader
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -29,31 +25,8 @@ object IconLoader {
     suspend fun load(context: Context, url: String): Bitmap? {
         if (url.isEmpty()) return null
         cache[url]?.let { return it }
-        return withContext(Dispatchers.IO) {
-            try {
-                if (url.startsWith("file://")) {
-                    val file = File(url.removePrefix("file://"))
-                    (if (file.exists()) BitmapFactory.decodeFile(file.path) else null)
-                        ?.also { cache[url] = it }
-                } else {
-                    val dir = File(context.cacheDir, "remote_icons").apply { mkdirs() }
-                    val cacheFile = File(dir, url.hashCode().toString())
-                    if (cacheFile.exists()) {
-                        BitmapFactory.decodeFile(cacheFile.path)?.let {
-                            cache[url] = it
-                            return@withContext it
-                        }
-                    }
-                    val bytes = URL(url).openStream().use { it.readBytes() }
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.also { bitmap ->
-                        runCatching { cacheFile.writeBytes(bytes) }
-                        cache[url] = bitmap
-                    }
-                }
-            } catch (_: Exception) {
-                null
-            }
-        }
+
+        return ProfileLogoLoader.load(context, url)?.also { cache[url] = it }
     }
 }
 

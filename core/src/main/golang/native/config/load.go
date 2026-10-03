@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"cfa/native/app"
+	"cfa/native/descriptions"
 
 	"github.com/metacubex/mihomo/common/yaml"
 	"github.com/metacubex/mihomo/config"
@@ -84,6 +85,7 @@ func Load(path string) error {
 	hub.ApplyConfig(cfg)
 
 	app.ApplySubtitlePattern(rawCfg.ClashForAndroid.UiSubtitlePattern)
+	descriptions.Apply(rawCfg.Proxy, rawCfg.ProxyGroup)
 
 	runtime.GC()
 

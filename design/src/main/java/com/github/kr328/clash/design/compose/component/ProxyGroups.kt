@@ -494,9 +494,12 @@ internal fun ProxyRow(
     // subtitle defaults to the type itself; only worth printing as text when
     // ui-subtitle-pattern extracted something else from the node's name — the
     // type is always shown by the icon above regardless.
-    val typeDescription = proxy.subtitle.takeIf {
-        it.isNotEmpty() && !it.equals(proxy.type, ignoreCase = true)
-    }
+    //
+    // A description from the profile (serverDescription / description) beats it.
+    val typeDescription = proxy.description.takeIf { it.isNotEmpty() }
+        ?: proxy.subtitle.takeIf {
+            it.isNotEmpty() && !it.equals(proxy.type, ignoreCase = true)
+        }
     var showTypeTooltip by remember { mutableStateOf(false) }
 
     Card(

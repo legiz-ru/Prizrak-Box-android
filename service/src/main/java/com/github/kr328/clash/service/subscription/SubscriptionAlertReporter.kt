@@ -3,6 +3,7 @@ package com.github.kr328.clash.service.subscription
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -14,6 +15,7 @@ import com.github.kr328.clash.service.ProfileProcessor
 import com.github.kr328.clash.service.R
 import com.github.kr328.clash.service.data.ImportedDao
 import com.github.kr328.clash.service.store.ServiceStore
+import com.github.kr328.clash.service.util.ProfileLogoLoader
 import com.github.kr328.clash.service.util.importedDir
 import org.json.JSONObject
 import java.io.File
@@ -113,8 +115,16 @@ suspend fun Context.reportSubscriptionAlerts(uuid: UUID) {
     // "shown" and will not flood the user the moment they turn it back on.
     if (!ServiceStore(this).notifySubscriptionAlerts) return
 
-    outcome.alerts.forEach { notifyAlert(imported.uuid, it, imported.name) }
+    // Loaded once for all alerts of this profile, and only now that we know
+    // something is going to be posted. Null (no logo, bad image, no network)
+    // just means the notification keeps its plain look.
+    val logo = ProfileLogoLoader.load(this, headers.profileLogo, NOTIFICATION_LOGO_SIZE_PX)
+
+    outcome.alerts.forEach { notifyAlert(imported.uuid, it, imported.name, logo) }
 }
+
+/** Largest side of the profile logo kept for the notification large icon, in pixels. */
+private const val NOTIFICATION_LOGO_SIZE_PX = 192
 
 /** Intent extras carried by a subscription-alert notification's tap target. */
 const val EXTRA_SUBSCRIPTION_ALERT_UUID = "subscription_alert_uuid"
@@ -167,7 +177,7 @@ private fun writeState(profileDir: File, value: Map<String, Long>) {
     }
 }
 
-private fun Context.notifyAlert(uuid: UUID, alert: SubscriptionAlert, profileName: String) {
+private fun Context.notifyAlert(uuid: UUID, alert: SubscriptionAlert, profileName: String, logo: Bitmap?) {
     // One shared channel (see createSubscriptionAlertChannels), but still a
     // distinct notification id per kind — so a fresh "expires in 3 days"
     // replaces a stale "expires in 7 days" instead of stacking, while an
@@ -198,14 +208,24 @@ private fun Context.notifyAlert(uuid: UUID, alert: SubscriptionAlert, profileNam
         pendingIntentFlags(PendingIntent.FLAG_UPDATE_CURRENT),
     )
 
-    val notification = NotificationCompat.Builder(this, SUBSCRIPTION_ALERT_CHANNEL)
+    val builder = NotificationCompat.Builder(this, SUBSCRIPTION_ALERT_CHANNEL)
         .setColor(getColorCompat(R.color.color_clash))
         .setSmallIcon(R.drawable.ic_logo_service)
-        .setContentTitle(title)
-        .setContentText(profileName)
         .setContentIntent(intent)
         .setAutoCancel(true)
-        .build()
+
+    builder
+        .setContentTitle(title)
+        .setContentText(profileName)
+
+    // The profile logo is the large icon: One UI and stock Android draw it on the
+    // right of the notification, the way Gmail shows a sender photo, while the
+    // small icon and the app name on the left stay the app's own.
+    if (logo != null) {
+        builder.setLargeIcon(logo)
+    }
+
+    val notification = builder.build()
 
     NotificationManagerCompat.from(this).notify(id, notification)
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"cfa/native/config"
+	"cfa/native/descriptions"
 
 	"github.com/dlclark/regexp2"
 
@@ -34,15 +35,16 @@ const (
 )
 
 type Proxy struct {
-	Name     string  `json:"name"`
-	Title    string  `json:"title"`
-	Subtitle string  `json:"subtitle"`
-	Type     string  `json:"type"`
-	IsGroup  bool    `json:"isGroup"`
-	Delay    int     `json:"delay"`
-	Tested   bool    `json:"tested"` // whether a delay test has ever run for this proxy on the group test URL
-	Weight   float64 `json:"weight"` // smart group weight; 0 if not applicable
-	Rank     string  `json:"rank"`   // smart group rank: MostUsed / OccasionalUsed / RarelyUsed
+	Name        string  `json:"name"`
+	Title       string  `json:"title"`
+	Subtitle    string  `json:"subtitle"`
+	Description string  `json:"description"` // serverDescription / description from the profile; "" if none
+	Type        string  `json:"type"`
+	IsGroup     bool    `json:"isGroup"`
+	Delay       int     `json:"delay"`
+	Tested      bool    `json:"tested"` // whether a delay test has ever run for this proxy on the group test URL
+	Weight      float64 `json:"weight"` // smart group weight; 0 if not applicable
+	Rank        string  `json:"rank"`   // smart group rank: MostUsed / OccasionalUsed / RarelyUsed
 }
 
 // delayRank orders a proxy for the Delay sort mode: alive first, then the ones
@@ -457,13 +459,14 @@ func convertProxies(proxies []C.Proxy, uiSubtitlePattern *regexp2.Regexp, groupT
 		_, isGroup := p.Adapter().(outboundgroup.ProxyGroup)
 
 		result = append(result, &Proxy{
-			Name:     name,
-			Title:    strings.TrimSpace(title),
-			Subtitle: strings.TrimSpace(subtitle),
-			Type:     p.Type().String(),
-			IsGroup:  isGroup,
-			Delay:    int(p.LastDelayForTestUrl(testURL)),
-			Tested:   tested,
+			Name:        name,
+			Title:       strings.TrimSpace(title),
+			Subtitle:    strings.TrimSpace(subtitle),
+			Description: descriptions.Get(name),
+			Type:        p.Type().String(),
+			IsGroup:     isGroup,
+			Delay:       int(p.LastDelayForTestUrl(testURL)),
+			Tested:      tested,
 		})
 	}
 	return result

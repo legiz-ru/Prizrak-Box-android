@@ -21,6 +21,8 @@ data class Proxy(
     val tested: Boolean = false,
     val weight: Double = 0.0,
     val rank: String = "",
+    /** `serverDescription` / `description` of the proxy or group in the profile; empty if none. */
+    val description: String = "",
     var isGroup: Boolean = false,
 ) : Parcelable {
     override fun writeToParcel(parcel: Parcel, flags: Int) {
