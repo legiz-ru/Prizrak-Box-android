@@ -19,10 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.io.FileNotFoundException
-import java.math.BigDecimal
 import java.util.*
 
 class ProfileManager(private val context: Context) : IProfileManager,
@@ -131,94 +128,13 @@ class ProfileManager(private val context: Context) : IProfileManager,
     }
 
     override suspend fun update(uuid: UUID) {
+        // The update itself — one request to the panel for the config and for the
+        // headers that go with it (title, interval, traffic) — runs in ProfileWorker.
         scheduleUpdate(uuid, true)
-        ImportedDao().queryByUUID(uuid)?.let {
-            if (it.type == Profile.Type.Url && it.source.startsWith("https://",true)) {
-                updateFlow(it)
-            }
-        }
     }
 
-    suspend fun updateFlow(old: Imported) {
-        val client = OkHttpClient()
-        try {
-            val request = ProfileProcessor.buildProfileRequest(context, old.source)
-
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    ProfileProcessor.saveProfileHeaders(
-                        context.importedDir.resolve(old.uuid.toString()),
-                        response.headers
-                    )
-                    // Update name/interval from headers if specified
-                    val hdrs = ProfileProcessor.readProfileHeaders(context.importedDir.resolve(old.uuid.toString()))
-                    if (hdrs.profileTitle.isNotEmpty() || hdrs.profileUpdateInterval > 0) {
-                        val newName = if (hdrs.profileTitle.isNotEmpty()) hdrs.profileTitle else old.name
-                        val newInterval = if (hdrs.profileUpdateInterval > 0) hdrs.profileUpdateInterval.toLong() * 60 * 60 * 1000 else old.interval
-                        val updated = old.copy(name = newName, interval = newInterval)
-                        ImportedDao().update(updated)
-                    }
-                }
-                if (!response.isSuccessful || response.headers["subscription-userinfo"] == null) return
-
-                var upload: Long = 0
-                var download: Long = 0
-                var total: Long = 0
-                var expire: Long = 0
-
-                val userinfo = response.headers["subscription-userinfo"]
-                if (response.isSuccessful && userinfo != null) {
-
-                    val flags = userinfo.split(";")
-                    for (flag in flags) {
-                        val info = flag.split("=")
-                        when {
-                            info[0].contains("upload") && info[1].isNotEmpty() -> upload =
-                                BigDecimal(info[1].split('.').first()).longValueExact()
-
-                            info[0].contains("download") && info[1].isNotEmpty() -> download =
-                                BigDecimal(info[1].split('.').first()).longValueExact()
-
-                            info[0].contains("total") && info[1].isNotEmpty() ->  total =
-                                BigDecimal(info[1].split('.').first()).longValueExact()
-
-                            info[0].contains("expire") && info[1].isNotEmpty() -> {
-                                if (info[1].isNotEmpty()) {
-                                    expire = (info[1].toDouble()*1000).toLong()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                val new = Imported(
-                    old.uuid,
-                    old.name,
-                    old.type,
-                    old.source,
-                    old.interval,
-                    upload,
-                    download,
-                    total,
-                    expire,
-                    old?.createdAt ?: System.currentTimeMillis(),
-                    ageSecretKey = old.ageSecretKey,
-                )
-
-                if (old != null) {
-                    ImportedDao().update(new)
-                } else {
-                    ImportedDao().insert(new)
-                }
-
-                PendingDao().remove(new.uuid)
-                context.sendProfileChanged(new.uuid)
-                // println(response.body!!.string())
-            }
-
-        } catch (e: Exception) {
-            System.out.println(e)
-        }
+    override suspend fun fetchUrlHeaders(url: String): String {
+        return ProfileProcessor.urlHeadersToJson(ProfileProcessor.fetchUrlHeaders(context, url))
     }
 
     override suspend fun commit(uuid: UUID, callback: IFetchObserver?) {

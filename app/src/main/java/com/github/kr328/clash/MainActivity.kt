@@ -40,6 +40,8 @@ import com.github.kr328.clash.update.UpdateChecker
 import com.github.kr328.clash.service.data.ImportedDao
 import com.github.kr328.clash.service.subscription.EXTRA_SUBSCRIPTION_ALERT_KIND
 import com.github.kr328.clash.service.subscription.EXTRA_SUBSCRIPTION_ALERT_UUID
+import com.github.kr328.clash.service.subscription.SubscriptionAlert
+import com.github.kr328.clash.service.subscription.describeSubscriptionAlert
 import com.github.kr328.clash.service.subscription.reportSubscriptionAlerts
 import com.github.kr328.clash.util.UrlOpener
 import com.github.kr328.clash.util.applyDynamicShortcuts
@@ -548,25 +550,22 @@ class MainActivity : BaseActivity() {
     }
 
     private suspend fun showSubscriptionAlertDialog(uuid: UUID, kind: String) {
+        val alert = SubscriptionAlert.fromKindCode(kind) ?: return
         val profile = withProfile { queryByUUID(uuid) } ?: return
 
-        val message = when {
-            kind == "EXPIRED" ->
-                getString(com.github.kr328.clash.service.R.string.subscription_expired)
-            kind.startsWith("EXPIRES_IN:") -> {
-                val days = kind.removePrefix("EXPIRES_IN:").toIntOrNull() ?: return
-                resources.getQuantityString(
-                    com.github.kr328.clash.service.R.plurals.subscription_expires_in_days,
-                    days,
-                    days,
-                )
-            }
-            kind.startsWith("TRAFFIC_USED:") -> {
-                val percent = kind.removePrefix("TRAFFIC_USED:").toIntOrNull() ?: return
-                getString(com.github.kr328.clash.service.R.string.subscription_traffic_used, percent)
-            }
-            else -> return
-        }
+        // Worded from the profile as it is now, not from the threshold that raised
+        // the alert: the notification can be hours or days old by the time it is
+        // tapped, and "4 days" must not be shown for a subscription that has
+        // 3 days and a few hours left.
+        val texts = describeSubscriptionAlert(
+            alert = alert,
+            expireAtMillis = profile.expire,
+            total = profile.total,
+            used = profile.upload + profile.download,
+            nowMillis = System.currentTimeMillis() + profile.clockSkewMillis,
+        )
+
+        val message = texts.detail?.let { "${texts.message}\n$it" } ?: texts.message
 
         val builder = MaterialAlertDialogBuilder(this)
             .setTitle(profile.name)

@@ -32,6 +32,12 @@
     <string name="subscription_alert_channel">Срок и трафик подписки</string>
     <string name="subscription_expired">Подписка истекла</string>
     <string name="subscription_traffic_used">Израсходовано %1$d%% трафика</string>
+    <string name="subscription_expires_at">Подписка истекает %1$s</string>
+    <string name="subscription_expires_on">Истекает %1$s</string>
+    <string name="subscription_remaining_days">Подписка истекает через %1$d дн.</string>
+    <string name="subscription_remaining_days_hours">Подписка истекает через %1$d д %2$d ч</string>
+    <string name="subscription_remaining_hours_minutes">Подписка истекает через %1$d ч %2$d мин</string>
+    <string name="subscription_remaining_minutes">Подписка истекает через %1$d мин</string>
     <plurals name="subscription_expires_in_days">
         <item quantity="one">Подписка истекает через %d день</item>
         <item quantity="few">Подписка истекает через %d дня</item>

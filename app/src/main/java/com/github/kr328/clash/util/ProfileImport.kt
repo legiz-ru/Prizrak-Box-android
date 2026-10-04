@@ -262,7 +262,9 @@ suspend fun Context.importProfileFromUrl(
     }
 
     // Standard HTTP(S) URL flow.
-    val headers = ProfileProcessor.fetchUrlHeaders(this, url)
+    // Asked of the background process, which also runs the import itself: the
+    // download made here is the one the import then reads the config from.
+    val headers = ProfileProcessor.parseUrlHeaders(withProfile { fetchUrlHeaders(url) })
 
     // Show HWID dialog immediately if the server already signals an error — no profile created.
     if (headers.hwidNotSupported) {

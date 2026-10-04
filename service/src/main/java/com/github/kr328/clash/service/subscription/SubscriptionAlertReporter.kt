@@ -120,7 +120,17 @@ suspend fun Context.reportSubscriptionAlerts(uuid: UUID) {
     // just means the notification keeps its plain look.
     val logo = ProfileLogoLoader.load(this, headers.profileLogo, NOTIFICATION_LOGO_SIZE_PX)
 
-    outcome.alerts.forEach { notifyAlert(imported.uuid, it, imported.name, logo) }
+    outcome.alerts.forEach {
+        notifyAlert(
+            uuid = imported.uuid,
+            alert = it,
+            profileName = imported.name,
+            logo = logo,
+            expireAt = imported.expire,
+            total = imported.total,
+            used = imported.upload + imported.download,
+        )
+    }
 }
 
 /** Largest side of the profile logo kept for the notification large icon, in pixels. */
@@ -129,16 +139,6 @@ private const val NOTIFICATION_LOGO_SIZE_PX = 192
 /** Intent extras carried by a subscription-alert notification's tap target. */
 const val EXTRA_SUBSCRIPTION_ALERT_UUID = "subscription_alert_uuid"
 const val EXTRA_SUBSCRIPTION_ALERT_KIND = "subscription_alert_kind"
-
-/** Same coded-string convention as the rest of this codebase's cross-boundary
- *  reasons (HwidNotSupportedException, FETCH_* — see ProfileProcessor): a
- *  plain Intent extra can't carry a sealed type, so the tap target on the
- *  other side (MainActivity) recovers the alert kind from this string. */
-private fun SubscriptionAlert.toKindCode(): String = when (this) {
-    is SubscriptionAlert.Expired -> "EXPIRED"
-    is SubscriptionAlert.ExpiresIn -> "EXPIRES_IN:$days"
-    is SubscriptionAlert.TrafficUsed -> "TRAFFIC_USED:$percent"
-}
 
 private fun stateFile(profileDir: File): File = profileDir.resolve(STATE_FILE)
 
@@ -177,27 +177,20 @@ private fun writeState(profileDir: File, value: Map<String, Long>) {
     }
 }
 
-private fun Context.notifyAlert(uuid: UUID, alert: SubscriptionAlert, profileName: String, logo: Bitmap?) {
-    // One shared channel (see createSubscriptionAlertChannels), but still a
-    // distinct notification id per kind — so a fresh "expires in 3 days"
-    // replaces a stale "expires in 7 days" instead of stacking, while an
-    // unrelated "traffic used" alert for the same profile stays a separate
-    // notification rather than clobbering it.
-    val id = when (alert) {
-        is SubscriptionAlert.ExpiresIn -> R.id.nf_subscription_expiring
-        is SubscriptionAlert.Expired -> R.id.nf_subscription_expired
-        is SubscriptionAlert.TrafficUsed -> R.id.nf_subscription_traffic
-    }
+private fun Context.notifyAlert(
+    uuid: UUID,
+    alert: SubscriptionAlert,
+    profileName: String,
+    logo: Bitmap?,
+    expireAt: Long,
+    total: Long,
+    used: Long,
+) {
+    // One shared channel (see createSubscriptionAlertChannels), but a distinct
+    // notification id per profile and kind — see SubscriptionAlerts.notificationId.
+    val id = SubscriptionAlerts.notificationId(uuid, alert)
 
-    val title = when (alert) {
-        is SubscriptionAlert.Expired -> getString(R.string.subscription_expired)
-        is SubscriptionAlert.ExpiresIn -> resources.getQuantityString(
-            R.plurals.subscription_expires_in_days,
-            alert.days,
-            alert.days,
-        )
-        is SubscriptionAlert.TrafficUsed -> getString(R.string.subscription_traffic_used, alert.percent)
-    }
+    val title = subscriptionAlertTitle(alert, expireAt, total, used)
 
     val intent = PendingIntent.getActivity(
         this,

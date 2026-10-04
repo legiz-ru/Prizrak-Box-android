@@ -26,6 +26,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver")
 }
 
 afterEvaluate {

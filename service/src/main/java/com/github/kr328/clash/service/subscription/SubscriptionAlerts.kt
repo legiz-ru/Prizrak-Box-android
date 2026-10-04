@@ -1,5 +1,7 @@
 package com.github.kr328.clash.service.subscription
 
+import java.util.Objects
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 sealed interface SubscriptionAlert {
@@ -8,6 +10,40 @@ sealed interface SubscriptionAlert {
     data class ExpiresIn(val days: Int) : SubscriptionAlert
 
     data class TrafficUsed(val percent: Int) : SubscriptionAlert
+
+    /**
+     * A plain Intent extra can't carry a sealed type, so the notification's tap
+     * target (MainActivity) recovers the kind from this coded string — the same
+     * convention as the rest of this codebase's cross-boundary reasons
+     * (HwidNotSupportedException, FETCH_* — see ProfileProcessor).
+     */
+    fun toKindCode(): String = when (this) {
+        is Expired -> "EXPIRED"
+        is ExpiresIn -> "EXPIRES_IN:$days"
+        is TrafficUsed -> "TRAFFIC_USED:$percent"
+    }
+
+    companion object {
+        fun fromKindCode(code: String): SubscriptionAlert? = when {
+            code == "EXPIRED" -> Expired
+            code.startsWith("EXPIRES_IN:") ->
+                code.removePrefix("EXPIRES_IN:").toIntOrNull()?.let { ExpiresIn(it) }
+            code.startsWith("TRAFFIC_USED:") ->
+                code.removePrefix("TRAFFIC_USED:").toIntOrNull()?.let { TrafficUsed(it) }
+            else -> null
+        }
+    }
+}
+
+/** Time left until expiry, split the way it is worded: the coarser the unit, the less is shown. */
+sealed interface SubscriptionRemaining {
+    data class Days(val days: Int) : SubscriptionRemaining
+
+    data class DaysHours(val days: Int, val hours: Int) : SubscriptionRemaining
+
+    data class HoursMinutes(val hours: Int, val minutes: Int) : SubscriptionRemaining
+
+    data class Minutes(val minutes: Int) : SubscriptionRemaining
 }
 
 /**
@@ -22,6 +58,10 @@ object SubscriptionAlerts {
     val DEFAULT_TRAFFIC_PERCENT = listOf(80, 90, 100)
 
     private val DAY_MILLIS = TimeUnit.DAYS.toMillis(1)
+
+    private val HOUR_MILLIS = TimeUnit.HOURS.toMillis(1)
+
+    private val MINUTE_MILLIS = TimeUnit.MINUTES.toMillis(1)
 
     private const val EXPIRED_KEY = "expired"
 
@@ -150,9 +190,64 @@ object SubscriptionAlerts {
     }
 
     private fun percentReached(used: Long, total: Long, threshold: Int): Boolean {
-        val whole = used / total * 100
-        val rest = used % total * 100 / total
+        return usedPercent(used, total)?.let { it >= threshold } ?: false
+    }
 
-        return whole + rest >= threshold
+    /**
+     * Percent of the quota used right now, rounded down, or null when the quota
+     * is unknown. A notification or dialog says this instead of the threshold
+     * that fired: by the time it is read, the traffic is a few percent past it.
+     */
+    fun usedPercent(used: Long, total: Long): Int? {
+        if (total <= 0) return null
+
+        val spent = used.coerceAtLeast(0)
+        val whole = spent / total * 100
+        val rest = spent % total * 100 / total
+
+        return (whole + rest).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    }
+
+    /**
+     * Splits the time left into the units the text is worded in: from 3 days
+     * on only days ("5 d"), from 1 to 3 days days and hours, under a day
+     * hours and minutes, under an hour minutes. [remainingMillis] must be
+     * positive — an expired subscription is worded as "expired", not as a
+     * duration.
+     */
+    fun splitRemaining(remainingMillis: Long): SubscriptionRemaining {
+        val days = remainingMillis / DAY_MILLIS
+        if (days >= 3) return SubscriptionRemaining.Days(days.toInt())
+
+        if (days >= 1) {
+            val hours = remainingMillis % DAY_MILLIS / HOUR_MILLIS
+            return SubscriptionRemaining.DaysHours(days.toInt(), hours.toInt())
+        }
+
+        val hours = remainingMillis / HOUR_MILLIS
+        if (hours >= 1) {
+            val minutes = remainingMillis % HOUR_MILLIS / MINUTE_MILLIS
+            return SubscriptionRemaining.HoursMinutes(hours.toInt(), minutes.toInt())
+        }
+
+        return SubscriptionRemaining.Minutes((remainingMillis / MINUTE_MILLIS).coerceAtLeast(1).toInt())
+    }
+
+    /**
+     * The notification slot of one alert kind of one profile. Per profile, so
+     * two profiles expiring on the same day each keep their own notification
+     * (and their own tap target — the PendingIntent request code is this id)
+     * instead of the second one overwriting the first; per kind, so a fresh
+     * "expires in 3 days" replaces a stale "expires in 7 days" while the
+     * unrelated "traffic used" alert of the same profile stays.
+     */
+    fun notificationId(uuid: UUID, alert: SubscriptionAlert): Int {
+        val slot = when (alert) {
+            is SubscriptionAlert.ExpiresIn -> 1
+            is SubscriptionAlert.Expired -> 2
+            is SubscriptionAlert.TrafficUsed -> 3
+        }
+
+        return Objects.hash(uuid, slot)
     }
 }

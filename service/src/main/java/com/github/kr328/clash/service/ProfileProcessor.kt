@@ -17,6 +17,7 @@ import com.github.kr328.clash.service.util.importedDir
 import com.github.kr328.clash.service.util.pendingDir
 import com.github.kr328.clash.service.util.processingDir
 import com.github.kr328.clash.service.util.sendProfileChanged
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
@@ -25,11 +26,13 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.github.kr328.clash.service.subscription.SubscriptionAlerts
+import com.github.kr328.clash.service.subscription.SubscriptionFetcher
 import android.provider.Settings
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 import java.math.BigDecimal
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -204,12 +207,12 @@ object ProfileProcessor {
      * with a 3xx code, which would read as a broken link rather than a
      * misconfigured provider.
      */
-    private fun throwIfRedirectDowngrade(response: okhttp3.Response) {
-        if (response.code !in 300..399) return
-        val location = response.header("Location") ?: return
-        val target = response.request.url.resolve(location) ?: return
+    private fun throwIfRedirectDowngrade(code: Int, headers: okhttp3.Headers, requestUrl: okhttp3.HttpUrl) {
+        if (code !in 300..399) return
+        val location = headers["Location"] ?: return
+        val target = requestUrl.resolve(location) ?: return
 
-        if (response.request.url.isHttps && !target.isHttps) {
+        if (requestUrl.isHttps && !target.isHttps) {
             throw FetchRedirectDowngradeException()
         }
     }
@@ -262,63 +265,43 @@ object ProfileProcessor {
     // Fetch helpers
     // -------------------------------------------------------------------------
 
-    /** Caps subscription/config downloads so a misbehaving server can't exhaust storage or memory. */
-    private const val MAX_PROFILE_RESPONSE_BYTES = 32L shl 20 // 32 MiB
-
     /**
-     * Copies [input] to [output] like [java.io.InputStream.copyTo], but aborts once more than
-     * [limit] bytes have been read — protects against an unbounded or lying Content-Length.
+     * The answer for [url] — headers and body together. Every step of an update
+     * or an import (endpoint check, config download, traffic numbers) asks here,
+     * and the panel gets one request: see [SubscriptionFetcher].
+     *
+     * [fresh] marks the first step of a new operation; later steps pass false
+     * and receive what that step got.
      */
-    private fun copyLimited(input: java.io.InputStream, output: java.io.OutputStream, limit: Long) {
-        val buffer = ByteArray(8192)
-        var total = 0L
-        while (true) {
-            val read = input.read(buffer)
-            if (read < 0) break
-            total += read
-            if (total > limit) throw FetchUnknownException("Response larger than $limit bytes")
-            output.write(buffer, 0, read)
+    private fun fetchSubscription(context: Context, url: String, fresh: Boolean): SubscriptionFetcher.Result {
+        try {
+            return SubscriptionFetcher.shared(context).fetch(buildProfileRequest(context, url), fresh)
+        } catch (e: SubscriptionFetcher.ResponseTooLargeException) {
+            throw FetchUnknownException(e.message)
         }
     }
 
-    /**
-     * Reads [body] fully into a String like [okhttp3.ResponseBody.string], but aborts once more
-     * than [limit] bytes have been read.
-     */
-    private fun stringLimited(body: okhttp3.ResponseBody, limit: Long): String {
-        val out = java.io.ByteArrayOutputStream()
-        body.byteStream().use { input -> copyLimited(input, out, limit) }
-        return out.toString(body.contentType()?.charset(Charsets.UTF_8)?.name() ?: "UTF-8")
-    }
-
-    private fun prefetchProfileConfig(context: Context, source: String, targetConfigFile: File): PrefetchResult {
+    private fun prefetchProfileConfig(
+        context: Context,
+        source: String,
+        targetConfigFile: File,
+        fresh: Boolean = false,
+    ): PrefetchResult {
         if (!hasActiveConnectivity(context)) {
             throw FetchNoConnectivityException()
         }
 
         try {
-            val request = buildProfileRequest(context, source)
-            val client = OkHttpClient.Builder()
-                .connectTimeout(20, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .followSslRedirects(false)
-                .build()
+            val result = fetchSubscription(context, source, fresh)
 
-            client.newCall(request).execute().use { response ->
-                throwIfHwidBlocked(response.headers)
-                throwIfRedirectDowngrade(response)
+            throwIfHwidBlocked(result.headers)
+            throwIfRedirectDowngrade(result.code, result.headers, result.requestUrl)
 
-                if (!response.isSuccessful) throw FetchHttpErrorException(response.code)
+            if (!result.isSuccessful) throw FetchHttpErrorException(result.code)
 
-                val body = response.body ?: throw FetchUnknownException("Empty response body")
-                targetConfigFile.parentFile?.mkdirs()
-                targetConfigFile.outputStream().use { output ->
-                    body.byteStream().use { input ->
-                        copyLimited(input, output, MAX_PROFILE_RESPONSE_BYTES)
-                    }
-                }
-                return PrefetchResult(response.headers)
-            }
+            result.copyBodyTo(targetConfigFile)
+
+            return PrefetchResult(result.headers)
         } catch (e: HwidNotSupportedException) {
             throw e
         } catch (e: HwidMaxDevicesReachedException) {
@@ -347,27 +330,21 @@ object ProfileProcessor {
         }
 
         try {
-            val request = buildProfileRequest(context, source)
-            val client = OkHttpClient.Builder()
-                .connectTimeout(20, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .followSslRedirects(false)
-                .build()
-            client.newCall(request).execute().use { response ->
-                throwIfHwidBlocked(response.headers)
-                throwIfRedirectDowngrade(response)
+            val result = fetchSubscription(context, source, fresh = false)
 
-                if (!response.isSuccessful) {
-                    throw FetchHttpErrorException(response.code)
-                }
-                val responseBody = response.body ?: throw FetchUnknownException("Empty response body")
-                val body = stringLimited(responseBody, MAX_PROFILE_RESPONSE_BYTES)
-                val pxaTemplateUrl = response.headers["pxa-template"]?.trim()?.ifBlank { null }
-                val pxaTemplateScheme = response.headers["pxa-template-scheme"]?.trim()?.ifBlank { null }
-                // Template selection is allowed unless the server locks it via pxa-template.
-                val allowTemplateSelection = pxaTemplateUrl == null && pxaTemplateScheme == null
-                return FetchedSource(body, pxaTemplateUrl, allowTemplateSelection, pxaTemplateScheme, headersAvailable = true, rawHeaders = response.headers)
+            throwIfHwidBlocked(result.headers)
+            throwIfRedirectDowngrade(result.code, result.headers, result.requestUrl)
+
+            if (!result.isSuccessful) {
+                throw FetchHttpErrorException(result.code)
             }
+
+            val body = result.readText()
+            val pxaTemplateUrl = result.headers["pxa-template"]?.trim()?.ifBlank { null }
+            val pxaTemplateScheme = result.headers["pxa-template-scheme"]?.trim()?.ifBlank { null }
+            // Template selection is allowed unless the server locks it via pxa-template.
+            val allowTemplateSelection = pxaTemplateUrl == null && pxaTemplateScheme == null
+            return FetchedSource(body, pxaTemplateUrl, allowTemplateSelection, pxaTemplateScheme, headersAvailable = true, rawHeaders = result.headers)
         } catch (e: HwidNotSupportedException) {
             throw e
         } catch (e: HwidMaxDevicesReachedException) {
@@ -425,19 +402,17 @@ object ProfileProcessor {
     private data class ProbeResult(val url: String, val headers: okhttp3.Headers)
 
     /**
-     * Returns the first [candidates] endpoint that answers 2xx within 9s, with its
-     * response headers. Used to read the management headers and pick a live endpoint.
+     * Returns the first [candidates] endpoint that answers 2xx, with its response
+     * headers. Used to read the management headers and pick a live endpoint. It
+     * downloads the whole answer through [SubscriptionFetcher], so the config
+     * that follows is not requested a second time.
      */
-    private fun probeEndpoint(context: Context, candidates: List<String>): ProbeResult? {
-        val client = OkHttpClient.Builder()
-            .callTimeout(9, TimeUnit.SECONDS)
-            .followSslRedirects(false)
-            .build()
+    private fun probeEndpoint(context: Context, candidates: List<String>, fresh: Boolean): ProbeResult? {
         for (url in candidates) {
             try {
-                client.newCall(buildProfileRequest(context, url)).execute().use { resp ->
-                    if (resp.isSuccessful) return ProbeResult(url, resp.headers)
-                }
+                val result = fetchSubscription(context, url, fresh)
+
+                if (result.isSuccessful) return ProbeResult(url, result.headers)
             } catch (_: Exception) {
                 // try next candidate
             }
@@ -454,6 +429,10 @@ object ProfileProcessor {
      * Entity-agnostic so both the import path (Pending) and the refresh path
      * (Imported) can reuse it — the caller supplies how to persist a migrated source.
      *
+     * [fresh] is true when this is the first step of a new operation (an update), false
+     * when it may reuse an answer another step has just fetched (an import that
+     * already asked for the headers).
+     *
      * Best-effort: on any error the original [source] is returned with no override URL.
      * Returns the (possibly migrated) canonical source and the URL to actually download
      * from (null = use the canonical source as before; this may be a temporary
@@ -464,6 +443,7 @@ object ProfileProcessor {
         uuid: UUID,
         type: Profile.Type,
         source: String,
+        fresh: Boolean,
         persistMigratedSource: suspend (String) -> Unit,
     ): Pair<String, String?> {
         if (type == Profile.Type.File || !isHttpUrl(source)) {
@@ -478,7 +458,7 @@ object ProfileProcessor {
             var downloadUrl: String? = null
             var migrations = 0
             while (migrations < 3) {
-                val probe = probeEndpoint(context, fallbackCandidates(current, fbUrl, fbDomain))
+                val probe = probeEndpoint(context, fallbackCandidates(current, fbUrl, fbDomain), fresh)
                     ?: break
                 fbUrl = probe.headers["fallback-url"]?.trim().orEmpty()
                 fbDomain = probe.headers["fallback-domain"]?.trim().orEmpty()
@@ -495,6 +475,38 @@ object ProfileProcessor {
             current to downloadUrl
         } catch (_: Exception) {
             source to null
+        }
+    }
+
+    /**
+     * Applies the headers of an update to the imported Url profile: the title and
+     * `profile-update-interval` rename it and set its interval (as they do for Converted
+     * profiles), and `subscription-userinfo` sets the traffic numbers — left alone when the
+     * panel did not send it, so a missing header never zeroes them.
+     *
+     * [importedDir] already holds the saved `profile_links.json` for these headers.
+     */
+    private suspend fun applyUrlHeadersToImported(uuid: UUID, headers: okhttp3.Headers, importedDir: File) {
+        val current = ImportedDao().queryByUUID(uuid) ?: return
+        val saved = readProfileHeaders(importedDir)
+
+        var updated = current.copy(
+            name = saved.profileTitle.ifEmpty { current.name },
+            interval = if (saved.profileUpdateInterval > 0) {
+                saved.profileUpdateInterval.toLong() * 60 * 60 * 1000
+            } else {
+                current.interval
+            },
+        )
+
+        if (headers["subscription-userinfo"] != null) {
+            val sub = parseSubscriptionUserInfo(headers)
+
+            updated = updated.copy(upload = sub[0], download = sub[1], total = sub[2], expire = sub[3])
+        }
+
+        if (updated != current) {
+            ImportedDao().update(updated)
         }
     }
 
@@ -838,6 +850,8 @@ object ProfileProcessor {
     private data class FetchTarget(
         val source: String,
         val force: Boolean,
+        /** Headers of the response the config was downloaded from; null when it was not downloaded here. */
+        val headers: okhttp3.Headers? = null,
     )
 
     private fun resolveFetchTarget(
@@ -850,11 +864,12 @@ object ProfileProcessor {
         val isHttpUrl = source.startsWith("https://", true) || source.startsWith("http://", true)
 
         if (type == Profile.Type.Url && isHttpUrl) {
+            var headers: okhttp3.Headers? = null
             if (!alreadyPrefetched) {
                 val localConfig = context.processingDir.resolve("config.yaml")
-                prefetchProfileConfig(context, downloadUrlOverride ?: source, localConfig)
+                headers = prefetchProfileConfig(context, downloadUrlOverride ?: source, localConfig).headers
             }
-            return FetchTarget(context.processingDir.resolve("config.yaml").toURI().toString(), false)
+            return FetchTarget(context.processingDir.resolve("config.yaml").toURI().toString(), false, headers)
         }
 
         // For Converted profiles the config.yaml is pre-written; just validate in place.
@@ -891,7 +906,7 @@ object ProfileProcessor {
                 // endpoint via fallback-url / fallback-domain. Best-effort — on any
                 // error this is a no-op and the original source is used as before.
                 val (migratedSource, downloadUrl) = resolveSubscriptionEndpoint(
-                    context, snapshot.uuid, snapshot.type, snapshot.source
+                    context, snapshot.uuid, snapshot.type, snapshot.source, fresh = false
                 ) { migrated -> PendingDao().update(snapshot.copy(source = migrated)) }
                 snapshot = snapshot.copy(source = migratedSource)
 
@@ -944,6 +959,9 @@ object ProfileProcessor {
 
                 var effectiveType = snapshot.type
                 var alreadyPrefetched = false
+                // Headers of the response the config came from (Url profiles): the
+                // traffic numbers and profile links are read from it, not requested again.
+                var urlHeaders: okhttp3.Headers? = null
 
                 // For Url+HTTP profiles: prefetch content and check for convertible format.
                 if (snapshot.type == Profile.Type.Url &&
@@ -953,6 +971,7 @@ object ProfileProcessor {
                     val localConfig = context.processingDir.resolve("config.yaml")
                     val prefetchResult = prefetchProfileConfig(context, downloadUrl ?: snapshot.source, localConfig)
                     alreadyPrefetched = true
+                    urlHeaders = prefetchResult.headers
 
                     if (localConfig.exists()) {
                         val content = localConfig.readText(Charsets.UTF_8)
@@ -1059,38 +1078,20 @@ object ProfileProcessor {
                             context.pendingDir.resolve(snapshot.uuid.toString()).deleteRecursively()
                             context.sendProfileChanged(snapshot.uuid)
                         } else if (snapshot?.type == Profile.Type.Url) {
-                            if (snapshot.source.startsWith("https://", true)) {
-                                val client = OkHttpClient()
-                                val request = buildProfileRequest(context, downloadUrl ?: snapshot.source)
+                            // The headers come from the response the config itself was
+                            // downloaded from — no second request for them.
+                            val hdrs = urlHeaders
+                            if (hdrs != null && snapshot.source.startsWith("https://", true)) {
+                                val sub = parseSubscriptionUserInfo(hdrs)
+                                upload = sub[0]
+                                download = sub[1]
+                                total = sub[2]
+                                expire = sub[3]
 
-                                client.newCall(request).execute().use { response ->
-                                    val userinfo = response.headers["subscription-userinfo"]
-                                    if (response.isSuccessful && userinfo != null) {
-                                        val flags = userinfo.split(";")
-                                        for (flag in flags) {
-                                            val info = flag.split("=")
-                                            when {
-                                                info[0].contains("upload") && info[1].isNotEmpty() -> upload =
-                                                    BigDecimal(info[1].split('.').first()).longValueExact()
-
-                                                info[0].contains("download") && info[1].isNotEmpty() -> download =
-                                                    BigDecimal(info[1].split('.').first()).longValueExact()
-
-                                                info[0].contains("total") && info[1].isNotEmpty() -> total =
-                                                    BigDecimal(info[1].split('.').first()).longValueExact()
-
-                                                info[0].contains("expire") && info[1].isNotEmpty() ->  expire =
-                                                    (info[1].toDouble() * 1000).toLong()
-                                            }
-                                        }
-                                    }
-                                    if (response.isSuccessful) {
-                                        saveProfileHeaders(
-                                            context.importedDir.resolve(snapshot.uuid.toString()),
-                                            response.headers
-                                        )
-                                    }
-                                }
+                                saveProfileHeaders(
+                                    context.importedDir.resolve(snapshot.uuid.toString()),
+                                    hdrs
+                                )
                             }
                             val new = Imported(
                                 snapshot.uuid,
@@ -1150,7 +1151,39 @@ object ProfileProcessor {
         }
     }
 
+    /** Profiles being updated right now; a second request for the same one joins the first. */
+    private val updatesInFlight = ConcurrentHashMap<UUID, CompletableDeferred<Unit>>()
+
+    /**
+     * Updates the imported profile [uuid]. If it is already being updated — the user tapped
+     * Update while the scheduler was running it, or tapped twice — this waits for that update
+     * and reports its outcome instead of starting a second one: a second one would ask the
+     * panel for the same subscription again.
+     */
     suspend fun update(context: Context, uuid: UUID, callback: IFetchObserver?) {
+        val mine = CompletableDeferred<Unit>()
+        val running = updatesInFlight.putIfAbsent(uuid, mine)
+
+        if (running != null) {
+            running.await()
+
+            return
+        }
+
+        try {
+            runUpdate(context, uuid, callback)
+
+            mine.complete(Unit)
+        } catch (e: Throwable) {
+            mine.completeExceptionally(e)
+
+            throw e
+        } finally {
+            updatesInFlight.remove(uuid, mine)
+        }
+    }
+
+    private suspend fun runUpdate(context: Context, uuid: UUID, callback: IFetchObserver?) {
         withContext(NonCancellable) {
             processLock.withLock {
                 var snapshot = profileLock.withLock {
@@ -1171,7 +1204,7 @@ object ProfileProcessor {
                 // endpoint via fallback-url / fallback-domain. Best-effort — on any
                 // error this is a no-op and the original source is used as before.
                 val (migratedSource, downloadUrl) = resolveSubscriptionEndpoint(
-                    context, snapshot.uuid, snapshot.type, snapshot.source
+                    context, snapshot.uuid, snapshot.type, snapshot.source, fresh = true
                 ) { migrated -> ImportedDao().update(snapshot.copy(source = migrated)) }
                 snapshot = snapshot.copy(source = migratedSource)
 
@@ -1240,16 +1273,18 @@ object ProfileProcessor {
                     if (ImportedDao().exists(snapshot.uuid)) {
                         val importedDir = context.importedDir.resolve(snapshot.uuid.toString())
 
-                        // For Url profiles, preserve profile_links.json before wiping importedDir:
-                        // updateFlow() may have written fresh announce/headers to it concurrently
-                        // after processingDir was snapshotted, and we must not lose those updates.
-                        val savedProfileLinks = if (snapshot.type == Profile.Type.Url) {
-                            importedDir.resolve("profile_links.json")
-                                .takeIf { it.exists() }?.readText()
-                        } else null
-
                         importedDir.deleteRecursively()
                         context.processingDir.copyRecursively(importedDir)
+
+                        // Url profiles: the profile links, name, interval and traffic numbers
+                        // come from the response the config was just downloaded from.
+                        val urlHeaders = fetchTarget.headers
+                        if (snapshot.type == Profile.Type.Url && urlHeaders != null &&
+                            snapshot.source.startsWith("https://", true)
+                        ) {
+                            saveProfileHeaders(importedDir, urlHeaders)
+                            applyUrlHeadersToImported(snapshot.uuid, urlHeaders, importedDir)
+                        }
 
                         // For Converted profiles: save standard profile headers and update
                         // subscription info in the DB record.
@@ -1275,12 +1310,6 @@ object ProfileProcessor {
                                     )
                                 )
                             }
-                        }
-
-                        // Restore profile_links.json for Url profiles so that headers written
-                        // by a concurrent updateFlow() are not overwritten by the stale snapshot.
-                        if (savedProfileLinks != null) {
-                            importedDir.resolve("profile_links.json").writeText(savedProfileLinks)
                         }
 
                         context.sendProfileChanged(snapshot.uuid)
@@ -1555,56 +1584,68 @@ object ProfileProcessor {
         val supportUrl: String = "",
     )
 
+    /** How long the preflight waits for the panel before the import carries on without it. */
+    private const val URL_HEADERS_WAIT_MILLIS = 3_000L
+
+    /**
+     * What the panel says about [url] before a profile exists: its title, update interval and
+     * the HWID verdict. This is the first step of an import, so it starts a fresh download —
+     * and that same download is what the import then reads the config from, instead of
+     * asking again. If the panel is slower than [URL_HEADERS_WAIT_MILLIS] the import goes on
+     * without the title; the download keeps running and the import joins it.
+     */
     suspend fun fetchUrlHeaders(context: Context, url: String): UrlHeaders {
         return withContext(Dispatchers.IO) {
             try {
-                val client = OkHttpClient.Builder()
-                    .connectTimeout(3, TimeUnit.SECONDS)
-                    .readTimeout(3, TimeUnit.SECONDS)
-                    .callTimeout(3, TimeUnit.SECONDS)
-                    .followSslRedirects(false)
-                    .build()
-                val baseRequest = buildProfileRequest(context, url)
+                if (!isHttpUrl(url)) return@withContext UrlHeaders()
 
-                fun parse(response: okhttp3.Response): UrlHeaders {
-                    val hdrs = response.headers
-                    // Check HWID error headers first — they can arrive on any status code (incl. 4xx).
-                    val hwidNotSupported = isHeaderTrue(hdrs, "x-hwid-not-supported")
-                    val hwidMaxDevices = isHeaderTrue(hdrs, "x-hwid-max-devices-reached")
-                    if (hwidNotSupported || hwidMaxDevices) {
-                        return UrlHeaders(
-                            hwidNotSupported = hwidNotSupported,
-                            hwidMaxDevicesReached = hwidMaxDevices,
-                            supportUrl = hdrs["support-url"]?.trim() ?: "",
-                        )
-                    }
-                    if (!response.isSuccessful) return UrlHeaders()
-                    val title = hdrs["profile-title"]?.let { decodeHeaderValue(it) } ?: ""
-                    val interval = hdrs["profile-update-interval"]?.trim()?.toIntOrNull() ?: 0
-                    return UrlHeaders(title, interval)
-                }
+                val result = SubscriptionFetcher.shared(context)
+                    .fetchWithin(buildProfileRequest(context, url), fresh = true, timeoutMillis = URL_HEADERS_WAIT_MILLIS)
+                    ?: return@withContext UrlHeaders()
 
-                // Some servers don't support HEAD correctly. Fallback to lightweight GET.
-                val headRequest = baseRequest.newBuilder().head().build()
-                client.newCall(headRequest).execute().use { response ->
-                    val headers = parse(response)
-                    if (headers.hwidNotSupported || headers.hwidMaxDevicesReached
-                        || headers.title.isNotEmpty() || headers.updateIntervalHours > 0) {
-                        return@withContext headers
-                    }
+                val hdrs = result.headers
+                // Check HWID error headers first — they can arrive on any status code (incl. 4xx).
+                val hwidNotSupported = isHeaderTrue(hdrs, "x-hwid-not-supported")
+                val hwidMaxDevices = isHeaderTrue(hdrs, "x-hwid-max-devices-reached")
+                if (hwidNotSupported || hwidMaxDevices) {
+                    return@withContext UrlHeaders(
+                        hwidNotSupported = hwidNotSupported,
+                        hwidMaxDevicesReached = hwidMaxDevices,
+                        supportUrl = hdrs["support-url"]?.trim() ?: "",
+                    )
                 }
+                if (!result.isSuccessful) return@withContext UrlHeaders()
 
-                val getRequest = baseRequest.newBuilder()
-                    .header("Range", "bytes=0-0")
-                    .get()
-                    .build()
-                client.newCall(getRequest).execute().use { response ->
-                    parse(response)
-                }
+                val title = hdrs["profile-title"]?.let { decodeHeaderValue(it) } ?: ""
+                val interval = hdrs["profile-update-interval"]?.trim()?.toIntOrNull() ?: 0
+                UrlHeaders(title, interval)
             } catch (_: Exception) {
                 UrlHeaders()
             }
         }
+    }
+
+    /** [UrlHeaders] as a string, for the trip from the background process to the app. */
+    fun urlHeadersToJson(headers: UrlHeaders): String = JSONObject()
+        .put("title", headers.title)
+        .put("updateIntervalHours", headers.updateIntervalHours)
+        .put("hwidNotSupported", headers.hwidNotSupported)
+        .put("hwidMaxDevicesReached", headers.hwidMaxDevicesReached)
+        .put("supportUrl", headers.supportUrl)
+        .toString()
+
+    fun parseUrlHeaders(json: String): UrlHeaders = try {
+        val o = JSONObject(json)
+
+        UrlHeaders(
+            title = o.optString("title", ""),
+            updateIntervalHours = o.optInt("updateIntervalHours", 0),
+            hwidNotSupported = o.optBoolean("hwidNotSupported", false),
+            hwidMaxDevicesReached = o.optBoolean("hwidMaxDevicesReached", false),
+            supportUrl = o.optString("supportUrl", ""),
+        )
+    } catch (_: Exception) {
+        UrlHeaders()
     }
 
     fun decodeHeaderValue(value: String): String {

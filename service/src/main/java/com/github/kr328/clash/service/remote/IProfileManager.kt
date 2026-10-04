@@ -13,6 +13,13 @@ interface IProfileManager {
     suspend fun delete(uuid: UUID)
     suspend fun patch(uuid: UUID, name: String, source: String, interval: Long, ageSecretKey: String = "")
     suspend fun update(uuid: UUID)
+
+    /**
+     * What the panel says about [url] before a profile exists, as JSON (see
+     * `ProfileProcessor.parseUrlHeaders`). Asked of this process, not made in the app's,
+     * so the import that follows can reuse the very same download.
+     */
+    suspend fun fetchUrlHeaders(url: String): String
     suspend fun queryByUUID(uuid: UUID): Profile?
     suspend fun queryAll(): List<Profile>
     suspend fun queryActive(): Profile?

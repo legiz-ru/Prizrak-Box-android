@@ -30,6 +30,12 @@
     <string name="subscription_alert_channel">到期与流量提醒</string>
     <string name="subscription_expired">订阅已到期</string>
     <string name="subscription_traffic_used">已使用 %1$d%% 流量</string>
+    <string name="subscription_expires_at">订阅将于 %1$s 到期</string>
+    <string name="subscription_expires_on">到期时间：%1$s</string>
+    <string name="subscription_remaining_days">订阅将在 %1$d 天后到期</string>
+    <string name="subscription_remaining_days_hours">订阅将在 %1$d 天 %2$d 小时后到期</string>
+    <string name="subscription_remaining_hours_minutes">订阅将在 %1$d 小时 %2$d 分钟后到期</string>
+    <string name="subscription_remaining_minutes">订阅将在 %1$d 分钟后到期</string>
     <plurals name="subscription_expires_in_days">
         <item quantity="other">订阅将在 %d 天后到期</item>
     </plurals>

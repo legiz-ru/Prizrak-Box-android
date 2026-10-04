@@ -32,6 +32,12 @@
     <string name="subscription_alert_channel">Expiry and traffic alerts</string>
     <string name="subscription_expired">Subscription expired</string>
     <string name="subscription_traffic_used">%1$d%% of traffic used</string>
+    <string name="subscription_expires_at">Subscription expires %1$s</string>
+    <string name="subscription_expires_on">Expires %1$s</string>
+    <string name="subscription_remaining_days">Subscription expires in %1$d d</string>
+    <string name="subscription_remaining_days_hours">Subscription expires in %1$d d %2$d h</string>
+    <string name="subscription_remaining_hours_minutes">Subscription expires in %1$d h %2$d min</string>
+    <string name="subscription_remaining_minutes">Subscription expires in %1$d min</string>
     <plurals name="subscription_expires_in_days">
         <item quantity="one">Subscription expires in %d day</item>
         <item quantity="other">Subscription expires in %d days</item>
