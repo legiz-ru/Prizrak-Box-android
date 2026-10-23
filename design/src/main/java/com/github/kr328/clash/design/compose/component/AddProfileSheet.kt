@@ -1,5 +1,11 @@
 package com.github.kr328.clash.design.compose.component
 
+import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -53,9 +59,13 @@ fun AddProfileSheet(
     val tvFocus = remember { FocusRequester() }
     // On TV, land the D-pad on the first option rather than the drag handle.
     LaunchedEffect(Unit) { if (isTv) runCatching { tvFocus.requestFocus() } }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
         Column(
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
         ) {
             if (isTv) {
                 TvImportCard(
@@ -77,31 +87,38 @@ fun AddProfileSheet(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .padding(end = 6.dp),
+                        .padding(end = 1.dp),
                 )
                 SquareActionCard(
                     icon = R.drawable.ic_mdi_qrcode_scan,
                     label = stringResource(R.string.scan_qr_code),
                     onClick = { onAction(AddProfileAction.ScanQr) },
+                    leading = false,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .padding(start = 6.dp),
+                        .padding(start = 1.dp),
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            FullWidthActionCard(
-                icon = R.drawable.ic_mdi_file_cog_outline,
-                label = stringResource(R.string.add_from_file),
-                onClick = { onAction(AddProfileAction.File) },
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            FullWidthActionCard(
-                icon = R.drawable.ic_mdi_plus_thick,
-                label = stringResource(R.string.add_manually),
-                onClick = { onAction(AddProfileAction.Manually) },
-            )
+            // The other two as a segmented group, as Settings lists rows.
+            Spacer(modifier = Modifier.height(14.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                CompositionLocalProvider(LocalSegment provides Segment(0, 2)) {
+                    PreferenceRow(
+                        title = stringResource(R.string.add_from_file),
+                        icon = R.drawable.ic_mdi_file_cog_outline,
+                        onClick = { onAction(AddProfileAction.File) },
+                    )
+                }
+                CompositionLocalProvider(LocalSegment provides Segment(1, 2)) {
+                    PreferenceRow(
+                        title = stringResource(R.string.add_manually),
+                        icon = R.drawable.ic_mdi_plus_thick,
+                        onClick = { onAction(AddProfileAction.Manually) },
+                    )
+                }
+            }
         }
     }
 }
@@ -112,7 +129,7 @@ private fun TvImportCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = scheme.primaryContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
@@ -143,20 +160,31 @@ private fun TvImportCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
+/** One of the two large actions, side by side: the outer corners round, the inner ones less, as a button group. */
 @Composable
 private fun SquareActionCard(
     icon: Int,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    leading: Boolean = true,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Card(
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    // Pressed, the whole tile rounds: Material 3 Expressive's shape morph.
+    val inner by animateDpAsState(if (pressed) 28.dp else 8.dp, MaterialTheme.motionScheme.fastSpatialSpec(), label = "inner")
+    val shape = if (leading) {
+        RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = inner, bottomEnd = inner)
+    } else {
+        RoundedCornerShape(topStart = inner, bottomStart = inner, topEnd = 28.dp, bottomEnd = 28.dp)
+    }
+    Surface(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = scheme.surfaceContainerHigh),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = shape,
+        color = scheme.surfaceBright,
+        interactionSource = source,
     ) {
         Column(
             modifier = Modifier
@@ -178,42 +206,6 @@ private fun SquareActionCard(
                 color = scheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 12.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun FullWidthActionCard(
-    icon: Int,
-    label: String,
-    onClick: () -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = scheme.surfaceContainerHigh),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = null,
-                tint = scheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                color = scheme.onSurface,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp),
             )
         }
     }

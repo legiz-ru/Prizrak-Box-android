@@ -30,7 +30,6 @@ fun MetaFeatureSettingsScreen(
     onImportGeoSite: () -> Unit,
     onImportCountry: () -> Unit,
     onImportASN: () -> Unit,
-    onGenerateAgeKeyPair: () -> Unit,
 ) {
     // sniffer.enable as snapshot state so the dependent rows' enabled flag updates live
     // when the strategy row changes it (read as `snifferEnable != false` inside each item).
@@ -62,7 +61,7 @@ fun MetaFeatureSettingsScreen(
             }
         },
     ) {
-        item { SettingsCategory(stringResource(R.string.settings)) }
+        category(R.string.settings)
 
         item { SelectablePreference(stringResource(R.string.unified_delay), booleanOptions, configuration.unifiedDelay) { configuration.unifiedDelay = it } }
         item { SelectablePreference(stringResource(R.string.geodata_mode), booleanOptions, configuration.geodataMode) { configuration.geodataMode = it } }
@@ -70,7 +69,7 @@ fun MetaFeatureSettingsScreen(
 
         item { SelectablePreference(stringResource(R.string.find_process_mode), findProcessOptions, configuration.findProcessMode) { configuration.findProcessMode = it } }
 
-        item { SettingsCategory(stringResource(R.string.sniffer_setting)) }
+        category(R.string.sniffer_setting)
 
         item { SelectablePreference(stringResource(R.string.strategy), booleanOptions, configuration.sniffer.enable) { configuration.sniffer.enable = it; snifferEnable = it } }
 
@@ -90,14 +89,12 @@ fun MetaFeatureSettingsScreen(
         item { SnifferList(stringResource(R.string.skip_src_address), configuration.sniffer.skipSrcAddress, snifferEnable != false) { configuration.sniffer.skipSrcAddress = it } }
         item { SnifferList(stringResource(R.string.skip_dst_address), configuration.sniffer.skipDstAddress, snifferEnable != false) { configuration.sniffer.skipDstAddress = it } }
 
-        item { SettingsCategory(stringResource(R.string.geox_files)) }
+        category(R.string.geox_files)
         item { PreferenceRow(stringResource(R.string.import_geoip_file), summary = stringResource(R.string.press_to_import), onClick = onImportGeoIp) }
         item { PreferenceRow(stringResource(R.string.import_geosite_file), summary = stringResource(R.string.press_to_import), onClick = onImportGeoSite) }
         item { PreferenceRow(stringResource(R.string.import_country_file), summary = stringResource(R.string.press_to_import), onClick = onImportCountry) }
         item { PreferenceRow(stringResource(R.string.import_asn_file), summary = stringResource(R.string.press_to_import), onClick = onImportASN) }
 
-        item { SettingsCategory(stringResource(R.string.age_secret_key)) }
-        item { PreferenceRow(stringResource(R.string.age_keypair_generate), summary = stringResource(R.string.age_keypair_generate_desc), onClick = onGenerateAgeKeyPair) }
     }
 }
 

@@ -1,5 +1,8 @@
 package com.github.kr328.clash.design.compose.component
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.FilledTonalIconButton
+import com.github.kr328.clash.design.compose.dialog.ExpressiveAlert
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -102,32 +104,28 @@ private fun TextInputDialog(
     onDismiss: () -> Unit,
 ) {
     var text by remember { mutableStateOf(initial) }
-    AlertDialog(
+    ExpressiveAlert(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                keyboardOptions = if (numeric) {
-                    KeyboardOptions(keyboardType = KeyboardType.Number)
-                } else {
-                    KeyboardOptions.Default
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(text) }) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onReset) { Text(stringResource(R.string.reset)) }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-            }
-        },
-    )
+        title = title,
+        confirmLabel = stringResource(R.string.ok),
+        onConfirm = { onConfirm(text) },
+        dismissLabel = stringResource(R.string.cancel),
+        neutralLabel = stringResource(R.string.reset),
+        onNeutral = onReset,
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            singleLine = true,
+            shape = MaterialTheme.shapes.large,
+            keyboardOptions = if (numeric) {
+                KeyboardOptions(keyboardType = KeyboardType.Number)
+            } else {
+                KeyboardOptions.Default
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
@@ -187,63 +185,47 @@ private fun ListEditorDialog(
 ) {
     val items = remember { mutableStateListOf<String>().apply { addAll(initial) } }
     var newItem by remember { mutableStateOf("") }
-    AlertDialog(
+    ExpressiveAlert(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 380.dp)
-                    .verticalScroll(rememberScrollState()),
+        title = title,
+        confirmLabel = stringResource(R.string.ok),
+        onConfirm = { onApply(items.toList()) },
+        dismissLabel = stringResource(R.string.cancel),
+        neutralLabel = stringResource(R.string.reset),
+        onNeutral = onReset,
+    ) {
+        // The entries as a segmented list; a field to add one below.
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            items.forEachIndexed { index, item ->
+                CompositionLocalProvider(LocalSegment provides Segment(index, items.size)) {
+                    EntryRow(item) { items.removeAt(index) }
+                }
+            }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 12.dp),
+        ) {
+            OutlinedTextField(
+                value = newItem,
+                onValueChange = { newItem = it },
+                singleLine = true,
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.weight(1f),
+            )
+            FilledTonalIconButton(
+                onClick = {
+                    if (newItem.isNotBlank()) {
+                        items.add(newItem.trim())
+                        newItem = ""
+                    }
+                },
+                modifier = Modifier.padding(start = 8.dp),
             ) {
-                items.forEachIndexed { index, item ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = item,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.weight(1f),
-                        )
-                        IconButton(onClick = { items.removeAt(index) }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_outline_delete),
-                                contentDescription = stringResource(R.string.delete),
-                            )
-                        }
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = newItem,
-                        onValueChange = { newItem = it },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(
-                        onClick = {
-                            if (newItem.isNotBlank()) {
-                                items.add(newItem.trim())
-                                newItem = ""
-                            }
-                        },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_baseline_add),
-                            contentDescription = null,
-                        )
-                    }
-                }
+                Icon(painter = painterResource(R.drawable.ic_baseline_add), contentDescription = null)
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onApply(items.toList()) }) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onReset) { Text(stringResource(R.string.reset)) }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-            }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -306,70 +288,74 @@ private fun MapEditorDialog(
     val pairs = remember { mutableStateListOf<Pair<String, String>>().apply { addAll(initial) } }
     var newKey by remember { mutableStateOf("") }
     var newValue by remember { mutableStateOf("") }
-    AlertDialog(
+    ExpressiveAlert(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 380.dp)
-                    .verticalScroll(rememberScrollState()),
+        title = title,
+        confirmLabel = stringResource(R.string.ok),
+        onConfirm = { onApply(pairs.toList()) },
+        dismissLabel = stringResource(R.string.cancel),
+        neutralLabel = stringResource(R.string.reset),
+        onNeutral = onReset,
+    ) {
+        // The entries as a segmented list; a field to add one below.
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            pairs.forEachIndexed { index, (k, v) ->
+                CompositionLocalProvider(LocalSegment provides Segment(index, pairs.size)) {
+                    EntryRow("$k → $v") { pairs.removeAt(index) }
+                }
+            }
+        }
+        OutlinedTextField(
+            value = newKey,
+            onValueChange = { newKey = it },
+            singleLine = true,
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 8.dp),
+        ) {
+            OutlinedTextField(
+                value = newValue,
+                onValueChange = { newValue = it },
+                singleLine = true,
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.weight(1f),
+            )
+            FilledTonalIconButton(
+                onClick = {
+                    if (newKey.isNotBlank() && newValue.isNotBlank()) {
+                        pairs.add(newKey.trim() to newValue.trim())
+                        newKey = ""
+                        newValue = ""
+                    }
+                },
+                modifier = Modifier.padding(start = 8.dp),
             ) {
-                pairs.forEachIndexed { index, (k, v) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "$k → $v",
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.weight(1f),
-                        )
-                        IconButton(onClick = { pairs.removeAt(index) }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_outline_delete),
-                                contentDescription = stringResource(R.string.delete),
-                            )
-                        }
-                    }
-                }
-                OutlinedTextField(
-                    value = newKey,
-                    onValueChange = { newKey = it },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
+                Icon(painter = painterResource(R.drawable.ic_baseline_add), contentDescription = null)
+            }
+        }
+    }
+}
+
+/** One entry of a list or map being edited: a segmented row with Delete at its end. */
+@Composable
+private fun EntryRow(text: String, onDelete: () -> Unit) {
+    PreferenceCard(modifier = Modifier.heightIn(min = 48.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp),
+        ) {
+            Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            IconButton(onClick = onDelete) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_outline_delete),
+                    contentDescription = stringResource(R.string.delete),
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = newValue,
-                        onValueChange = { newValue = it },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(
-                        onClick = {
-                            if (newKey.isNotBlank() && newValue.isNotBlank()) {
-                                pairs.add(newKey.trim() to newValue.trim())
-                                newKey = ""
-                                newValue = ""
-                            }
-                        },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_baseline_add),
-                            contentDescription = null,
-                        )
-                    }
-                }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onApply(pairs.toList()) }) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onReset) { Text(stringResource(R.string.reset)) }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-            }
-        },
-    )
+        }
+    }
 }

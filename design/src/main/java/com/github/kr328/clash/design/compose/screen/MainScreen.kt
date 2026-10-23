@@ -1,9 +1,78 @@
 package com.github.kr328.clash.design.compose.screen
 
+import com.github.kr328.clash.design.compose.tv.TvHome
+import com.github.kr328.clash.design.compose.tv.TvServers
+import com.github.kr328.clash.design.compose.tv.tvPlayPause
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.ScrollState
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CancellationException
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.withTimeoutOrNull
+import com.github.kr328.clash.design.compose.rememberWideLayout
+import com.github.kr328.clash.design.compose.WideLayout
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.FilledTonalIconButton
+import com.github.kr328.clash.design.compose.deck.deckHero
+import com.github.kr328.clash.design.compose.deck.OpenedProfileActions
+import com.github.kr328.clash.design.compose.deck.OpenedProfile
+import com.github.kr328.clash.design.compose.deck.LocalDeckHero
+import com.github.kr328.clash.design.compose.deck.DeckHero
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterTransition
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
+import com.github.kr328.clash.design.compose.deck.StripHeight
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import com.github.kr328.clash.design.compose.deck.CardFigures
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.github.kr328.clash.design.store.ProfileRecency
+import com.github.kr328.clash.design.compose.deck.ProfileDeck
+import com.github.kr328.clash.design.compose.tv.TvWelcome
+import com.github.kr328.clash.design.compose.deck.DeckUpdates
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.LinearEasing
+import com.github.kr328.clash.design.compose.deck.rememberCardColour
+import com.github.kr328.clash.design.compose.deck.CardTitle
+import com.github.kr328.clash.design.compose.deck.CardLogo
+import com.github.kr328.clash.design.compose.deck.CardInk
+import com.github.kr328.clash.design.compose.deck.CardFace
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.github.kr328.clash.design.compose.theme.Appearance
+import com.github.kr328.clash.design.compose.background.HomeBackgroundStyle
+import com.github.kr328.clash.design.compose.background.HomeBackground
+import androidx.compose.foundation.BorderStroke
+import com.github.kr328.clash.design.compose.background.homeGlass
+import com.github.kr328.clash.design.compose.background.HomeGlassBackdrop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -44,6 +113,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -77,15 +149,31 @@ import java.util.concurrent.TimeUnit
  * while running, a floating toolbar (disconnect + latency test) plus an entry to
  * the proxy selector. The inline proxy-group accordion is handled in a follow-up.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MainScreen(
     expanded: Boolean,
     clashRunning: Boolean,
+    /** Between the tap on the ghost and the tunnel running (or failing). */
+    connecting: Boolean,
+    /** The active profile's ↻ is turning: its update is under way. */
+    updatingProfile: Boolean,
     isLoading: Boolean,
     hasProfiles: Boolean,
     activeProfile: Profile?,
-    appTitle: String,
-    appLogoUrl: String,
+    /** Every profile: the deck shows the others above the active card. */
+    profiles: List<Profile>,
+    /** "Update all": which profile updates now, which ones failed. */
+    deckUpdates: DeckUpdates,
+    onUpdateAll: () -> Unit,
+    /** The opened profile's "Edit Profile": the Android profile editor. */
+    onEditProfile: (Profile) -> Unit,
+    /** The opened profile's "Update Subscription". */
+    onUpdateProfileOf: (Profile) -> Unit,
+    /** The opened profile's "Delete Profile", confirmed. */
+    onDeleteProfile: (Profile) -> Unit,
+    /** Another profile made active from the deck. */
+    onActivateProfile: (Profile) -> Unit,
     latencyTesting: Boolean,
     proxyGroups: List<Pair<String, ProxyGroup>>,
     useDots: Boolean,
@@ -106,28 +194,271 @@ fun MainScreen(
     onSelectProxy: (String, String) -> Unit,
     onUrlTest: (String) -> Unit,
     onTestProxy: (String, String) -> Unit,
-    onLogoTap: () -> Unit = {},
     isTv: Boolean = false,
+    /** A tab asked for from outside (Settings' Profiles tab on a tablet); [onTabShown] once taken. */
+    requestedTab: SettingsNavTarget? = null,
+    onTabShown: () -> Unit = {},
 ) {
     var showAddSheet by remember { mutableStateOf(false) }
-    var openedGroup by remember { mutableStateOf<String?>(null) }
+    // Kept across a change of width (folding, unfolding, resizing): the same
+    // group is a sheet on a phone and the right column on a tablet.
+    var openedGroup by rememberSaveable { mutableStateOf<String?>(null) }
     val simpleMode = activeProfile?.simpleMode == true
     val groupMap = remember(proxyGroups) { proxyGroups.toMap() }
     val visibleGroups = remember(proxyGroups) { proxyGroups.filter { !it.second.hidden } }
     val homeScroll = rememberScrollState()
     val scrollbarColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val context = LocalContext.current
 
+    // The deck: the others top to bottom, the one used last nearest the active card.
+    var deckExpanded by rememberSaveable { mutableStateOf(false) }
+    // The profile opened from the deck: its card flies up over Home.
+    var openedUuid by rememberSaveable { mutableStateOf<java.util.UUID?>(null) }
+    var lastOpened by remember { mutableStateOf<Profile?>(null) }
+    profiles.firstOrNull { it.uuid == openedUuid }?.let { lastOpened = it }
+    // Deleted while open: nothing left to show.
+    if (openedUuid != null && profiles.none { it.uuid == openedUuid }) openedUuid = null
+    val stack = remember(profiles, activeProfile?.uuid) {
+        // The profile left behind goes nearest the card first: noted here, before the order is
+        // read. Noted later (by the accent's refresh), it was read before and lay at the end.
+        ProfileRecency.noteActive(context, activeProfile?.uuid)
+        ProfileRecency.ordered(context, profiles.filter { it.uuid != activeProfile?.uuid && it.imported }).reversed()
+    }
+    val foldable = stack.size > 3
+    val unfolded = deckExpanded && foldable
+    // A new active profile, however chosen: the deck folds, the connect button is back in reach.
+    LaunchedEffect(activeProfile?.uuid) { deckExpanded = false }
+    // As in Wallet: unfolding slides the active card down to the bottom of
+    // the screen, the strips nearest it above and the far ones piled up at
+    // the top; scrolling the card back up to its folded place (the connect
+    // button under it, as on the folded Home) folds the deck right there —
+    // the strips gather back into the stack while the card stays.
+    val deckFold = remember { DeckFold() }
+    val foldDensity = androidx.compose.ui.platform.LocalDensity.current
+    var deckFoldRoom by remember { mutableFloatStateOf(0f) }
+    // Folding where the card reached its place: the strips go at once (see the card's fold below).
+    var deckFoldInstant by remember { mutableStateOf(false) }
+    val foldScope = rememberCoroutineScope()
+    // A scroll asked from a layout reaches Home's layout only after that frame is drawn: what it
+    // still has to move is drawn as this shift meanwhile (and dropped on the next layout).
+    var deckDrawShift by remember { mutableFloatStateOf(0f) }
+
+    // Unfolding, as on iOS: the strips take their whole places at once — none squeezed over
+    // another (growing, they covered each other's rounded lower edges and showed through each
+    // other) — and Home scrolls by what they add above the card before that frame is drawn, the
+    // card staying where it is; then one glide takes it down to the bottom of the screen, the
+    // strips coming in from the top at their spacing.
+    fun unfoldDeck() {
+        if (deckExpanded) return
+        if (foldable) {
+            deckFold.holdAt = deckFold.cardBottom
+            deckFold.holdPending = true
+            // Room under the deck for that scroll; trimmed once the card is down.
+            val added = with(foldDensity) { (StripHeight * stack.size).toPx() }
+            deckFoldRoom = maxOf(deckFoldRoom, added + deckFold.viewportBottom)
+        }
+        deckExpanded = true
+    }
+
+    // Folded where the card is at its folded place: the strips go and Home goes back to its top
+    // in one frame (see the card's layout below), the card staying where it is.
+    fun foldHere(byDrag: Boolean) {
+        deckFold.foldingByCard = true
+        deckFold.swallowDrag = byDrag
+        deckFold.scrollToTopPending = true
+        deckFoldInstant = true
+        deckExpanded = false
+        // Asked from a layout: the fold is composed in the very next frame, not one later.
+        Snapshot.sendApplyNotifications()
+    }
+
+    // "Collapse": the unfolded deck moves up whole, at its spacing, until the card is at its
+    // folded place, and folds there as when the card is scrolled there by hand.
+    fun foldDeck() {
+        if (!deckExpanded) return
+        val folded = deckFold.foldedCardBottom
+        if (!unfolded || folded == null) {
+            deckExpanded = false
+            return
+        }
+        foldScope.launch {
+            deckFold.gliding = true
+            try {
+                val target = (homeScroll.value + deckFold.cardBottom - folded).roundToInt().coerceIn(0, homeScroll.maxValue)
+                homeScroll.glideTo(target)
+                foldHere(byDrag = false)
+            } catch (_: CancellationException) {
+                // A touch took the scroll over: the deck stays unfolded.
+            } finally {
+                deckFold.gliding = false
+            }
+        }
+    }
+
+    var deckWasUnfolded by remember { mutableStateOf(unfolded) }
+    LaunchedEffect(unfolded) {
+        if (unfolded == deckWasUnfolded) return@LaunchedEffect
+        deckWasUnfolded = unfolded
+        if (unfolded) {
+            // A pull that unfolded the deck: once the finger is off.
+            snapshotFlow { homeScroll.isScrollInProgress }.first { !it }
+            deckFold.unfoldedAt = System.currentTimeMillis()
+            deckFold.armed = false
+            // The card held at its place first, then down to the bottom of the screen.
+            withFrameNanos { }
+            val margin = with(foldDensity) { 12.dp.toPx() }
+            // Never up: a card longer than the screen stays where it is.
+            val target = (homeScroll.value + deckFold.cardBottom - (deckFold.viewportBottom - margin))
+                .roundToInt().coerceIn(0, homeScroll.value)
+            try {
+                homeScroll.glideTo(target)
+            } catch (_: CancellationException) {
+                // A touch took the scroll over.
+            }
+            // Room under the deck for the card to reach its folded place, and a little more.
+            // Measured again once laid out: with few profiles Home was shorter than the screen
+            // and the room first filled that gap — the card could not reach its place.
+            deckFold.foldedCardBottom?.let { folded ->
+                val target = folded - with(foldDensity) { 40.dp.toPx() }
+                repeat(4) {
+                    val lowestReach = deckFold.cardBottom - (homeScroll.maxValue - homeScroll.value)
+                    val room = (deckFoldRoom + lowestReach - target).coerceAtLeast(0f)
+                    if (abs(room - deckFoldRoom) < 1f) return@let
+                    deckFoldRoom = room
+                    withFrameNanos { }
+                    withFrameNanos { }
+                }
+            }
+        } else if (deckFold.foldingByCard) {
+            deckFold.foldingByCard = false
+            withFrameNanos { }
+            deckFoldInstant = false
+        } else {
+            try {
+                snapshotFlow { homeScroll.isScrollInProgress }.first { !it }
+                foldToTop(homeScroll)
+            } catch (_: CancellationException) {
+                // A new touch took the scroll over.
+            }
+        }
+    }
+
+    // Two columns by the window's width, as iOS's regular width; Android TV keeps its rail.
+    val wide = if (isTv || expanded) WideLayout.Phone else rememberWideLayout()
+    val twoPane = wide.twoPane && hasProfiles && !isLoading
+    // Half-open with the fold across the screen ("laptop"): the columns above and below the fold.
+    val tabletop = twoPane && wide.foldTop != null
+    val tablet = wide.tablet && !isLoading
+    // A tablet's Profiles tab; anywhere narrower it is Home with the deck unfolded, as iOS opens its profiles sheet.
+    var tab by rememberSaveable { mutableStateOf(SettingsNavTarget.Home) }
+    // Android TV: Home or Servers.
+    var tvTab by rememberSaveable { mutableStateOf(SettingsNavTarget.Home) }
+    LaunchedEffect(clashRunning) { if (!clashRunning) tvTab = SettingsNavTarget.Home }
+    LaunchedEffect(requestedTab) {
+        if (requestedTab != null) {
+            if (isTv) {
+                if (requestedTab == SettingsNavTarget.Home || requestedTab == SettingsNavTarget.Servers) tvTab = requestedTab
+            } else if (requestedTab == SettingsNavTarget.Profiles && !wide.tablet) unfoldDeck() else tab = requestedTab
+            onTabShown()
+        }
+    }
+    LaunchedEffect(wide.tablet) {
+        if (!wide.tablet && tab == SettingsNavTarget.Profiles) {
+            tab = SettingsNavTarget.Home
+            unfoldDeck()
+        }
+    }
+    // The profile open beside the Profiles tab's strips (null: the active one).
+    var tabProfile by rememberSaveable { mutableStateOf<java.util.UUID?>(null) }
+    val profileActions = OpenedProfileActions(
+        onActivate = { openedUuid = null; onActivateProfile(it) },
+        onUpdate = onUpdateProfileOf,
+        onEdit = onEditProfile,
+        onDelete = { openedUuid = null; onDeleteProfile(it) },
+        onLink = onOpenWebPage,
+    )
+    // Home tapped while on Home folds the deck.
+    val navigate: (SettingsNavTarget) -> Unit = { target ->
+        when {
+            target == SettingsNavTarget.Home && tab != SettingsNavTarget.Home -> tab = SettingsNavTarget.Home
+            target == SettingsNavTarget.Home && deckExpanded -> foldDeck()
+            target == SettingsNavTarget.Profiles && wide.tablet -> tab = SettingsNavTarget.Profiles
+            else -> onNavigate(target)
+        }
+    }
+    // A pull down past the top unfolds the deck, as pulling a stack of cards
+    // apart (Wallet); it folds where the active card is scrolled back up to
+    // its place (`deckFold`).
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val pull = remember(foldable) {
+        object : NestedScrollConnection {
+            // How far this touch has pulled past the top (+) or pushed past the end (−).
+            var dragged = 0f
+            // This pull unfolded the deck.
+            var unfoldedNow = false
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput || unfoldedNow) return Offset.Zero
+                dragged += available.y
+                if (!deckExpanded && foldable && dragged > with(density) { 44.dp.toPx() }) {
+                    unfoldedNow = true
+                    unfoldDeck()
+                }
+                return Offset.Zero
+            }
+
+            // Once the pull has unfolded the deck, the rest of it moves
+            // nothing: the deck settles, then goes to its end.
+            // The same once the card folded the deck at its place — the drag
+            // or the fling that brought it there stops: a fling went on over
+            // the folded Home and the cards flew past.
+            // And a scroll that would carry the card past its folded place
+            // goes only as far as that place, where the deck folds: a quick
+            // swipe moved it past in one frame, and it jumped back.
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (unfoldedNow && source == NestedScrollSource.UserInput) return available
+                if (deckFold.swallowDrag) return available
+                val folded = deckFold.foldedCardBottom
+                if (deckExpanded && deckFold.armed && folded != null && available.y < 0f) {
+                    val room = folded - deckFold.cardBottom
+                    if (available.y < room) return Offset(0f, available.y - room)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                val handled = unfoldedNow || deckFold.swallowDrag
+                dragged = 0f
+                unfoldedNow = false
+                return if (handled) available else Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                deckFold.swallowDrag = false
+                return Velocity.Zero
+            }
+        }
+    }
+
+    // The right column's group: the one picked, else the first; simple mode: always the first.
+    val shownGroup = if (simpleMode) visibleGroups.firstOrNull()?.first
+    else openedGroup?.takeIf { groupMap.containsKey(it) } ?: visibleGroups.firstOrNull()?.first
+    // Below a tablet's tabs at the top.
+    val bodyTop = if (tablet) TabletTopBarHeight else 0.dp
     val body: @Composable (Modifier) -> Unit = { contentModifier ->
         Scaffold(
             modifier = contentModifier,
+            // The background shows through (Settings → Visual → Home Background).
+            containerColor = Color.Transparent,
             bottomBar = {
-                if (!expanded) {
-                    MainBottomBar(
+                if (!expanded && !tablet && !tabletop) {
+                    AppBottomBar(
+                        selected = SettingsNavTarget.Home,
+                        onNavigate = navigate,
                         clashRunning = clashRunning,
-                        simpleMode = simpleMode,
-                        latencyTesting = latencyTesting,
-                        onNavigate = onNavigate,
                         onDisconnect = onDisconnect,
+                        showLatencyTest = clashRunning && simpleMode && !unfolded,
+                        latencyTesting = latencyTesting,
                         onLatencyTest = onLatencyTest,
                     )
                 }
@@ -137,15 +468,32 @@ fun MainScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScrollbar(homeScroll, scrollbarColor)
+                        .onGloballyPositioned {
+                            deckFold.viewportBottom = it.boundsInWindow().bottom -
+                                with(density) { inner.calculateBottomPadding().toPx() }
+                        }
+                        .nestedScroll(pull)
+                        // The unfolded deck scrolls as the cards themselves, without a bar at the side.
+                        .then(if (unfolded) Modifier else Modifier.verticalScrollbar(homeScroll, scrollbarColor))
                         .verticalScroll(homeScroll)
+                        .drawWithContent {
+                            val shift = deckDrawShift
+                            if (shift == 0f) drawContent() else translate(top = shift) { this@drawWithContent.drawContent() }
+                        }
                         .padding(
-                            top = inner.calculateTopPadding(),
+                            top = inner.calculateTopPadding() + bodyTop,
                             bottom = inner.calculateBottomPadding(),
                         )
                         .padding(horizontal = 16.dp),
                 ) {
-                    Header(appTitle = appTitle, logoUrl = appLogoUrl, onLogoTap = onLogoTap)
+                    Header(
+                        // Welcome has its own big ＋: none in the corner then.
+                        showAdd = hasProfiles && !isLoading,
+                        unfolded = unfolded,
+                        updatingAll = deckUpdates.updating.isNotEmpty(),
+                        onUpdateAll = onUpdateAll,
+                        onAdd = { showAddSheet = true },
+                    )
 
                     AnimatedVisibility(
                         visible = isLoading,
@@ -163,33 +511,100 @@ fun MainScreen(
                     }
 
                     if (hasProfiles && !isLoading) {
-                        MainProfileCard(
-                            profile = activeProfile,
-                            clashRunning = clashRunning,
-                            onUpdate = onUpdateProfile,
-                            onManage = onManageProfiles,
-                            onModeSelector = onModeSelector,
-                            onConnections = onOpenConnections,
-                            onProviders = onOpenProviders,
-                            onSupport = onOpenSupport,
-                            onWebPage = onOpenWebPage,
-                            onRenew = onOpenRenew,
-                        )
+                        ProfileDeck(
+                            stack = stack,
+                            expanded = unfolded,
+                            onExpanded = { if (it) unfoldDeck() else foldDeck() },
+                            updates = deckUpdates,
+                            onOpen = { openedUuid = it.uuid },
+                            onActivate = onActivateProfile,
+                            scroll = homeScroll,
+                            instantFold = deckFoldInstant,
+                            compact = clashRunning,
+                            drawShift = { deckDrawShift },
+                            // The deck's bottom is the active card's.
+                            modifier = Modifier.onGloballyPositioned { coordinates ->
+                                // Not the visible bounds: a card longer than the screen was cut at its edge.
+                                val bottom = coordinates.positionInWindow().y + coordinates.size.height
+                                deckFold.cardBottom = bottom
+                                // Laid out with the scroll asked last frame: no shift to draw any more.
+                                if (deckDrawShift != 0f) {
+                                    deckDrawShift = 0f
+                                    Snapshot.sendApplyNotifications()
+                                }
+                                if (unfolded && deckFold.holdPending) {
+                                    // The unfolded deck's first layout: Home scrolls by what the strips added
+                                    // above the card, and this frame draws it shifted by as much — the card
+                                    // stays where it was (it was drawn a frame where the strips pushed it).
+                                    deckFold.holdPending = false
+                                    val pushed = bottom - deckFold.holdAt
+                                    homeScroll.dispatchRawDelta(pushed)
+                                    deckDrawShift = -pushed
+                                    deckFold.cardBottom = deckFold.holdAt
+                                    Snapshot.sendApplyNotifications()
+                                } else if (!unfolded && deckFold.scrollToTopPending) {
+                                    // The folded deck's first layout: Home back at its top, drawn so already
+                                    // in this frame — the card stays at its place.
+                                    deckFold.scrollToTopPending = false
+                                    val scrolled = homeScroll.value.toFloat()
+                                    homeScroll.dispatchRawDelta(-scrolled)
+                                    deckDrawShift = scrolled
+                                    deckFold.cardBottom = bottom + scrolled
+                                    Snapshot.sendApplyNotifications()
+                                } else if (!unfolded) {
+                                    if (homeScroll.value == 0) deckFold.foldedCardBottom = bottom
+                                    deckFold.armed = false
+                                } else if (!deckFold.gliding && deckFold.cardReachedFold(bottom, with(density) { 4.dp.toPx() })) {
+                                    // The card is where the folded Home has it, Home scrolled by just the
+                                    // height of the strips above it. They go and the scroll goes back to the
+                                    // top in the same frame: the card does not move. Animated, the strips
+                                    // shrank over several frames while the scroll caught up a frame late —
+                                    // the cards jumped down and back up. Not scrolled here: a scroll takes
+                                    // effect before this frame is drawn, the fold only in the next one —
+                                    // the whole unfolded deck showed for a frame from Home's top.
+                                    foldHere(byDrag = true)
+                                }
+                            },
+                        ) {
+                            if (activeProfile != null) MainProfileCard(
+                                profile = activeProfile,
+                                clashRunning = clashRunning,
+                                updating = updatingProfile || activeProfile.uuid in deckUpdates.updating,
+                                onOpen = { openedUuid = activeProfile.uuid },
+                                onUpdate = onUpdateProfile,
+                                onModeSelector = onModeSelector,
+                                onConnections = onOpenConnections,
+                                onProviders = onOpenProviders,
+                                onSupport = onOpenSupport,
+                                onWebPage = onOpenWebPage,
+                                onRenew = onOpenRenew,
+                            )
+                        }
                     }
 
-                    AnimatedVisibility(visible = hasProfiles && !clashRunning && !isLoading) {
-                        PowerSection(onToggle = onPowerToggle)
+                    // The unfolded deck has the screen to itself.
+                    // In two columns the button is the right column's (HomeDetailPane): the cards have this one
+                    // to themselves — unless a profile opened from the deck takes the right column.
+                    // Under the active card, folded or not: scrolling the unfolded deck up to
+                    // the folded look folds it there.
+                    AnimatedVisibility(visible = hasProfiles && !clashRunning && !isLoading && (!twoPane || openedUuid != null)) {
+                        PowerSection(connecting = connecting, onToggle = onPowerToggle)
                     }
 
                     AnimatedVisibility(
-                        visible = clashRunning,
+                        visible = clashRunning && !unfolded,
                         // Drop in from the top (like the power button), instead of
-                        // the default bottom-anchored expand that read diagonally.
-                        enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-                        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+                        // the default bottom-anchored expand that read diagonally. Folded at the
+                        // card's place they are simply there, in the same frame as the strips
+                        // went, as on iOS: fading in under the card they flickered.
+                        enter = if (deckFoldInstant) EnterTransition.None else fadeIn() + expandVertically(expandFrom = Alignment.Top),
+                        // Unfolding they go at once, as on iOS: the card glides down over where they were.
+                        exit = if (unfolded) ExitTransition.None else fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
                     ) {
                         Column {
-                            if (simpleMode && visibleGroups.isNotEmpty()) {
+                            if (simpleMode && twoPane) {
+                                // Its nodes are the right column.
+                            } else if (simpleMode && visibleGroups.isNotEmpty()) {
                                 val (firstName, firstGroup) = visibleGroups.first()
                                 SimpleModeProxyList(
                                     group = firstGroup,
@@ -206,22 +621,155 @@ fun MainScreen(
                                         group = group,
                                         groupMap = groupMap,
                                         onClick = { openedGroup = name },
+                                        selected = twoPane && name == shownGroup,
                                     )
                                 }
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
+
+                    if (unfolded && deckFoldRoom > 0f) {
+                        Spacer(Modifier.height(with(density) { deckFoldRoom.toDp() }))
+                    }
                 }
             }
         }
     }
 
+    // Home's background: the profile theme's or the user's; Android TV has none, as Apple TV.
+    val appearance by Appearance.state.collectAsStateWithLifecycle()
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
-        if (expanded) {
+      HomeBackground(
+        style = if (isTv) HomeBackgroundStyle.Clean else appearance.background,
+        connected = clashRunning,
+        modifier = Modifier.fillMaxSize(),
+      ) {
+       SharedTransitionLayout {
+        val heroScope = this
+        // In two columns the opened profile is the right column: no card flies.
+        CompositionLocalProvider(LocalDeckHero provides DeckHero(heroScope, if (twoPane) null else openedUuid)) {
+        if (twoPane || tablet) {
+            WideHome(
+                wide = wide,
+                tablet = tablet,
+                tab = tab,
+                twoPane = twoPane,
+                body = body,
+                detail = { bottomInset ->
+                    HomeDetailPane(
+                        opened = profiles.firstOrNull { it.uuid == openedUuid },
+                        actions = profileActions,
+                        onCloseProfile = { openedUuid = null },
+                        clashRunning = clashRunning,
+                        activeProfile = activeProfile,
+                        groupName = shownGroup,
+                        groupMap = groupMap,
+                        hasGroups = proxyGroups.isNotEmpty(),
+                        useDots = useDots,
+                        testingProxies = testingProxies,
+                        onSelectProxy = onSelectProxy,
+                        onUrlTest = onUrlTest,
+                        onTestProxy = onTestProxy,
+                        bottomInset = bottomInset,
+                        power = { PowerSection(connecting = connecting, onToggle = onPowerToggle) },
+                    )
+                },
+                profilesTab = { leftWidth, gap, top, bottom ->
+                    ProfilesTabPane(
+                        profiles = profiles,
+                        activeProfile = activeProfile,
+                        selected = tabProfile,
+                        onSelect = { tabProfile = it },
+                        deckUpdates = deckUpdates,
+                        onUpdateAll = onUpdateAll,
+                        onAdd = { showAddSheet = true },
+                        actions = profileActions,
+                        leftWidth = leftWidth,
+                        gap = gap,
+                        top = top,
+                        bottom = bottom,
+                    )
+                },
+                topBar = {
+                    TabletTopBar(
+                        selected = tab,
+                        onNavigate = navigate,
+                        clashRunning = clashRunning,
+                        onDisconnect = onDisconnect,
+                    )
+                },
+                tabletop = tabletop,
+                bottomBar = {
+                    AppBottomBar(
+                        selected = SettingsNavTarget.Home,
+                        onNavigate = navigate,
+                        clashRunning = clashRunning,
+                        onDisconnect = onDisconnect,
+                        showLatencyTest = clashRunning && simpleMode && !unfolded,
+                        latencyTesting = latencyTesting,
+                        onLatencyTest = onLatencyTest,
+                    )
+                },
+            )
+        } else if (isTv) {
+            // Android TV: the tabs at the top, as on Apple TV and iPad — Servers between Home and
+            // Profiles while a profile runs; Home as Apple TV's, the power circle and the card.
+            val servers = tvTab == SettingsNavTarget.Servers && clashRunning
+            Column(modifier = Modifier.fillMaxSize().tvPlayPause(onPowerToggle)) {
+                TabletTopBar(
+                    selected = if (servers) SettingsNavTarget.Servers else SettingsNavTarget.Home,
+                    onNavigate = { target ->
+                        when (target) {
+                            SettingsNavTarget.Home, SettingsNavTarget.Servers -> tvTab = target
+                            else -> onNavigate(target)
+                        }
+                    },
+                    clashRunning = clashRunning,
+                    onDisconnect = onDisconnect,
+                    tabs = tvTabs(clashRunning, hasProfiles || isLoading),
+                    showDisconnect = false,
+                )
+                if (servers) {
+                    TvServers(
+                        simpleMode = simpleMode,
+                        groups = visibleGroups,
+                        groupMap = groupMap,
+                        useDots = useDots,
+                        testingProxies = testingProxies,
+                        latencyTesting = latencyTesting,
+                        onLatencyTest = onLatencyTest,
+                        onSelectProxy = onSelectProxy,
+                        onUrlTest = onUrlTest,
+                        onTestProxy = onTestProxy,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else if (hasProfiles && !isLoading && activeProfile != null) {
+                    TvHome(
+                        profile = activeProfile,
+                        clashRunning = clashRunning,
+                        connecting = connecting,
+                        updating = updatingProfile || activeProfile.uuid in deckUpdates.updating,
+                        onPowerToggle = onPowerToggle,
+                        onUpdate = onUpdateProfile,
+                        onModeSelector = onModeSelector,
+                        onConnections = onOpenConnections,
+                        onProviders = onOpenProviders,
+                        onSupport = onOpenSupport,
+                        onWebPage = onOpenWebPage,
+                        onRenew = onOpenRenew,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else if (!hasProfiles && !isLoading && !clashRunning) {
+                    TvWelcome(onAdd = { showAddSheet = true }, modifier = Modifier.weight(1f))
+                } else {
+                    Box(modifier = Modifier.weight(1f)) { body(Modifier.fillMaxSize()) }
+                }
+            }
+        } else if (expanded) {
             Row(modifier = Modifier.fillMaxSize()) {
                 AppNavigationRail(
                     selected = SettingsNavTarget.Home,
@@ -241,6 +789,28 @@ fun MainScreen(
         } else {
             body(Modifier.fillMaxSize())
         }
+        }
+
+        // The opened profile, over Home and its bar.
+        AnimatedVisibility(
+            visible = openedUuid != null && !twoPane,
+            enter = EnterTransition.None,
+            exit = ExitTransition.None,
+        ) {
+            val shown = lastOpened
+            if (shown != null) {
+                val close = { openedUuid = null }
+                OpenedProfile(
+                    scope = heroScope,
+                    profile = shown,
+                    others = ProfileRecency.ordered(context, profiles.filter { it.uuid != shown.uuid && it.imported }),
+                    actions = profileActions,
+                    onClose = close,
+                )
+            }
+        }
+       }
+      }
     }
 
     if (showAddSheet) {
@@ -256,7 +826,7 @@ fun MainScreen(
 
     val opened = openedGroup
     val openedData = opened?.let { groupMap[it] }
-    if (opened != null && openedData != null) {
+    if (!twoPane && opened != null && openedData != null) {
         ProxySelectionSheet(
             groupName = opened,
             group = openedData,
@@ -272,44 +842,97 @@ fun MainScreen(
     }
 }
 
+/**
+ * The app's ghost and name at the left, as on iOS — the profile's own logo
+ * and title are on its card — on the line of ＋ (add a profile) at the right.
+ */
 @Composable
-private fun Header(appTitle: String, logoUrl: String, onLogoTap: () -> Unit = {}) {
-    Row(
+private fun Header(showAdd: Boolean, unfolded: Boolean, updatingAll: Boolean, onUpdateAll: () -> Unit, onAdd: () -> Unit) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            // As tall with ＋ as without it: the title does not move.
+            .heightIn(min = 40.dp)
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.CenterStart,
     ) {
-        // Hidden easter egg: tapping the logo 15× unlocks the "Always Summer"
-        // theme. Suppress the ripple so it stays invisible.
-        val logoModifier = Modifier
-            .size(64.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onLogoTap,
-            )
-        val defaultLogo: @Composable () -> Unit = {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.semantics(mergeDescendants = true) { heading() },
+        ) {
             Icon(
                 painter = painterResource(R.drawable.ic_clash),
                 contentDescription = null,
-                tint = androidx.compose.ui.graphics.Color.Unspecified,
-                modifier = logoModifier,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "Prizrak-Box",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
             )
         }
-        if (logoUrl.isNotEmpty()) {
-            RemoteIcon(url = logoUrl, modifier = logoModifier, fallback = defaultLogo)
-        } else {
-            defaultLogo()
+        Row(modifier = Modifier.align(Alignment.CenterEnd), verticalAlignment = Alignment.CenterVertically) {
+            // ↻ updates every profile while the deck is unfolded.
+            AnimatedVisibility(visible = unfolded, enter = fadeIn(), exit = fadeOut()) {
+                Row {
+                    HeaderButton(
+                        icon = R.drawable.ic_baseline_sync,
+                        label = stringResource(R.string.deck_update_all),
+                        busy = updatingAll,
+                        onClick = onUpdateAll,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+            }
+            if (showAdd) {
+                HeaderButton(R.drawable.ic_baseline_add, stringResource(R.string.add_profile), onClick = onAdd)
+            }
         }
-        Text(
-            text = appTitle,
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(start = 8.dp),
-        )
     }
 }
 
+/** ↻ and ＋, as in Home's header: for the tablet's Profiles tab. */
+@Composable
+internal fun ProfilesHeaderButtons(updatingAll: Boolean, onUpdateAll: () -> Unit, onAdd: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        HeaderButton(
+            icon = R.drawable.ic_baseline_sync,
+            label = stringResource(R.string.deck_update_all),
+            busy = updatingAll,
+            onClick = onUpdateAll,
+        )
+        Spacer(Modifier.width(8.dp))
+        HeaderButton(R.drawable.ic_baseline_add, stringResource(R.string.add_profile), onClick = onAdd)
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun HeaderButton(icon: Int, label: String, busy: Boolean = false, onClick: () -> Unit) {
+    // Material 3 Expressive: a tonal icon button whose shape gives under the finger.
+    FilledTonalIconButton(
+        onClick = onClick,
+        enabled = !busy,
+        shapes = IconButtonDefaults.shapes(),
+        colors = IconButtonDefaults.filledTonalIconButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            disabledContentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        modifier = Modifier.size(40.dp),
+    ) {
+        if (busy) {
+            LoadingIndicator(Modifier.size(28.dp))
+        } else {
+            Icon(painter = painterResource(icon), contentDescription = label)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun Onboarding(onAdd: () -> Unit) {
     Column(
@@ -329,20 +952,21 @@ private fun Onboarding(onAdd: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             modifier = Modifier.padding(top = 12.dp),
         )
-        // Same muted circular style as the (stopped) ghost power button.
-        Box(
+        // Same muted circular style as the (stopped) ghost power button; its shape gives under the finger.
+        FilledTonalIconButton(
+            onClick = onAdd,
+            shapes = IconButtonDefaults.shapes(),
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
             modifier = Modifier
                 .padding(top = 48.dp)
-                .size(120.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .clickable(onClick = onAdd),
-            contentAlignment = Alignment.Center,
+                .size(120.dp),
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_baseline_add),
                 contentDescription = stringResource(R.string.add_profile),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(64.dp),
             )
         }
@@ -356,16 +980,16 @@ private fun Onboarding(onAdd: () -> Unit) {
 }
 
 @Composable
-private fun PowerSection(onToggle: () -> Unit) {
+internal fun PowerSection(connecting: Boolean, onToggle: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 24.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        GhostPowerButton(running = false, onClick = onToggle, size = 100.dp)
+        GhostPowerButton(busy = connecting, onClick = onToggle)
         Text(
-            text = stringResource(R.string.tap_to_start),
+            text = stringResource(if (connecting) R.string.connecting else R.string.tap_to_start),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             modifier = Modifier.padding(top = 12.dp),
@@ -373,93 +997,20 @@ private fun PowerSection(onToggle: () -> Unit) {
     }
 }
 
+
 /**
- * Floating bottom bar: a Home/Settings nav pill, flanked while running by a red
- * square "stop" button (right) and, for simple-mode profiles, a square
- * latency-test button (left). Inspired by the June app's floating pill nav.
+ * The active profile's card, as on iOS: its colour (from its logo or its
+ * `pxa-theme`) and white text; the logo, the name and ↻ in its header; its
+ * figures; the row of icons; the announcement; Renew in white when the
+ * subscription is about to run out. A tap outside its buttons opens it.
  */
 @Composable
-private fun MainBottomBar(
-    clashRunning: Boolean,
-    simpleMode: Boolean,
-    latencyTesting: Boolean,
-    onNavigate: (SettingsNavTarget) -> Unit,
-    onDisconnect: () -> Unit,
-    onLatencyTest: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AnimatedVisibility(visible = clashRunning && simpleMode) {
-            Row {
-                SquareBarButton(
-                    onClick = { if (!latencyTesting) onLatencyTest() },
-                    container = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ) {
-                    if (latencyTesting) {
-                        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_baseline_speed),
-                            contentDescription = stringResource(R.string.delay_test),
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-            }
-        }
-
-        NavPill(selected = SettingsNavTarget.Home, onNavigate = onNavigate)
-
-        AnimatedVisibility(visible = clashRunning) {
-            Row {
-                Spacer(modifier = Modifier.width(12.dp))
-                SquareBarButton(
-                    onClick = onDisconnect,
-                    container = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_mdi_power),
-                        contentDescription = stringResource(R.string.disconnect),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SquareBarButton(
-    onClick: () -> Unit,
-    container: Color,
-    contentColor: Color,
-    content: @Composable () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
-        color = container,
-        contentColor = contentColor,
-        shadowElevation = 3.dp,
-        modifier = Modifier.size(56.dp),
-    ) {
-        Box(contentAlignment = Alignment.Center) { content() }
-    }
-}
-
-@Composable
 private fun MainProfileCard(
-    profile: Profile?,
+    profile: Profile,
     clashRunning: Boolean,
+    updating: Boolean,
+    onOpen: () -> Unit,
     onUpdate: () -> Unit,
-    onManage: () -> Unit,
     onModeSelector: () -> Unit,
     onConnections: () -> Unit,
     onProviders: () -> Unit,
@@ -467,219 +1018,159 @@ private fun MainProfileCard(
     onWebPage: (String) -> Unit,
     onRenew: (String) -> Unit,
 ) {
-    val scheme = MaterialTheme.colorScheme
-    Card(
+    val colour = rememberCardColour(profile)
+    CardFace(
+        colour = colour,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = scheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            .padding(top = 8.dp)
+            .deckHero(profile.uuid)
+            .clickable(onClick = onOpen),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Header: sync + name + manage
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            // Header: logo, name, and ↻ at the right edge.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                MainCardIcon(R.drawable.ic_baseline_sync, stringResource(R.string.update), onUpdate)
-                Text(
-                    text = profile?.name ?: stringResource(R.string.profile),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = scheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp),
-                )
-                MainCardIcon(
-                    R.drawable.ic_mdi_account_cog_outline,
-                    stringResource(R.string.manage_profiles),
-                    onManage,
-                )
-            }
-
-            val hasTraffic = profile != null && profile.total > 1
-            val hasExpire = profile != null && profile.expire > 0
-
-            if (hasTraffic && profile != null) {
-                MainInfoRow(
-                    R.drawable.ic_mdi_chart_timeline_variant,
-                    stringResource(R.string.traffic_used),
-                    (profile.download + profile.upload).toBytesString(),
-                    topMargin = 16.dp,
-                )
-                MainInfoRow(
-                    R.drawable.ic_mdi_database_check,
-                    stringResource(R.string.traffic_available),
-                    profile.total.toBytesString(),
-                )
-            }
-            if (hasExpire && profile != null) {
-                val expireText = remember(profile.expire) {
-                    SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(profile.expire))
+                CardLogo(profile, colour)
+                Spacer(Modifier.width(10.dp))
+                CardTitle(profile.name, modifier = Modifier.weight(1f))
+                if (profile.type != Profile.Type.File) {
+                    val spin = rememberInfiniteTransition(label = "update")
+                    val angle by spin.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 360f,
+                        animationSpec = infiniteRepeatable(tween(800, easing = LinearEasing)),
+                        label = "angle",
+                    )
+                    MainCardIcon(
+                        R.drawable.ic_baseline_sync,
+                        stringResource(R.string.update),
+                        onClick = { if (!updating) onUpdate() },
+                        modifier = Modifier.graphicsLayer { rotationZ = if (updating) angle else 0f },
+                    )
                 }
-                MainInfoRow(R.drawable.ic_mdi_calendar_alert, stringResource(R.string.expires), expireText)
-            }
-            if (profile != null) {
-                val updatedText = (System.currentTimeMillis() - profile.updatedAt)
-                    .elapsedIntervalString(androidx.compose.ui.platform.LocalContext.current)
-                MainInfoRow(R.drawable.ic_mdi_update, stringResource(R.string.updated), updatedText)
             }
 
-            // Link icons row
-            val supportUrl = profile?.supportUrl.orEmpty()
-            val webPageUrl = profile?.profileWebPageUrl.orEmpty()
-            val renewUrl = profile?.renewUrl.orEmpty()
-            val showShortcuts = clashRunning &&
-                (profile?.globalModeMp == true || profile?.connsViewMp == true || profile?.rpMp == true)
+            // Figures: only the rows that have a value.
+            Column(modifier = Modifier.padding(vertical = 10.dp)) {
+                CardFigures(profile)
+            }
+
+            // Icons: the tunnel's (while it runs) at the left, the provider's at the right.
+            val supportUrl = profile.supportUrl
+            val webPageUrl = profile.profileWebPageUrl
+            val renewUrl = profile.renewUrl
+            val showShortcuts = clashRunning && (profile.globalModeMp || profile.connsViewMp || profile.rpMp)
             if (supportUrl.isNotEmpty() || webPageUrl.isNotEmpty() || renewUrl.isNotEmpty() || showShortcuts) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (clashRunning && profile?.globalModeMp == true) {
-                        MainCardIcon(R.drawable.ic_mdi_earth, null, onModeSelector)
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    if (clashRunning && profile.globalModeMp) {
+                        MainCardIcon(R.drawable.ic_arrow_decision_outline, stringResource(R.string.mode), onModeSelector)
                     }
-                    if (clashRunning && profile?.connsViewMp == true) {
-                        MainCardIcon(R.drawable.ic_mdi_transit_connection_variant, null, onConnections)
+                    if (clashRunning && profile.rpMp) {
+                        MainCardIcon(R.drawable.ic_mdi_database, stringResource(R.string.providers), onProviders)
                     }
-                    if (clashRunning && profile?.rpMp == true) {
-                        MainCardIcon(R.drawable.ic_mdi_database, null, onProviders)
+                    if (clashRunning && profile.connsViewMp) {
+                        MainCardIcon(R.drawable.ic_mdi_transit_connection_variant, stringResource(R.string.connections), onConnections)
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     if (renewUrl.isNotEmpty()) {
-                        MainCardIcon(
-                            R.drawable.ic_mdi_credit_card_outline,
-                            stringResource(R.string.renew_subscription),
-                            { onRenew(renewUrl) },
-                        )
+                        MainCardIcon(R.drawable.ic_mdi_credit_card_outline, stringResource(R.string.renew_subscription), { onRenew(renewUrl) })
                     }
                     if (supportUrl.isNotEmpty()) {
+                        val telegram = supportUrl.contains("t.me") || supportUrl.contains("telegram")
                         MainCardIcon(
-                            R.drawable.ic_mdi_face_agent,
+                            if (telegram) R.drawable.ic_outline_send else R.drawable.ic_mdi_help_circle_outline,
                             stringResource(R.string.contact_support),
                             { onSupport(supportUrl) },
                         )
                     }
                     if (webPageUrl.isNotEmpty()) {
-                        MainCardIcon(
-                            R.drawable.ic_mdi_home_import_outline,
-                            stringResource(R.string.provider_website),
-                            { onWebPage(webPageUrl) },
-                        )
+                        MainCardIcon(R.drawable.ic_mdi_web, stringResource(R.string.provider_website), { onWebPage(webPageUrl) })
                     }
                 }
             }
 
-            val announce = profile?.announce.orEmpty().replace("\\n", "\n")
+            val announce = profile.announce.replace("\\n", "\n")
             if (announce.isNotEmpty()) {
                 Text(
                     text = announce,
                     style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurface.copy(alpha = 0.8f),
+                    color = CardInk.primary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 10.dp),
+                        .padding(top = 10.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.18f))
+                        .padding(8.dp),
                 )
             }
 
             // Renew nudge — independent of the "Subscription alerts" notification
-            // switch (this is a UI element, not a push notification) and of
-            // whether SubscriptionAlerts has already "shown" a threshold before:
-            // it just reflects whether a threshold is crossed right now.
-            //
-            // Expiry uses the panel's own notify-expire-days when present, but
-            // falls back to the built-in defaults when the panel sent nothing —
-            // unlike the push-notification path, which stays silent without an
-            // explicit header. Traffic only evaluates when the panel actually
-            // sent notify-traffic-percent; there is no sensible default percent.
-            if (renewUrl.isNotEmpty() && profile != null) {
-                val nowMillis = System.currentTimeMillis() + profile.clockSkewMillis
-                val expireDays = profile.notifyExpireDays ?: SubscriptionAlerts.DEFAULT_EXPIRE_DAYS
-                val expireSoon = profile.expire != 0L && expireDays.isNotEmpty() &&
-                    (profile.expire - nowMillis).let { remaining ->
-                        remaining <= 0L || expireDays.any { remaining <= it * DAY_MILLIS }
-                    }
-                val trafficThresholds = profile.notifyTrafficPercent
-                val trafficSoon = profile.total > 0 && !trafficThresholds.isNullOrEmpty() &&
-                    (profile.upload + profile.download).coerceAtLeast(0).let { used ->
-                        trafficThresholds.any { threshold ->
-                            val whole = used / profile.total * 100
-                            val rest = used % profile.total * 100 / profile.total
-                            whole + rest >= threshold
-                        }
-                    }
-
-                if (expireSoon || trafficSoon) {
-                    Button(
-                        onClick = { onRenew(renewUrl) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_mdi_credit_card_outline),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.renew_subscription))
-                    }
+            // switch (this is a UI element, not a push notification): it reflects
+            // whether a threshold is crossed right now. Expiry uses the panel's own
+            // notify-expire-days when present, else the built-in defaults; traffic
+            // only evaluates when the panel sent notify-traffic-percent.
+            if (renewUrl.isNotEmpty() && shouldShowRenew(profile)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White)
+                        .clickable { onRenew(renewUrl) }
+                        .padding(vertical = 9.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // White on the card, in the card's own colour.
+                    Icon(
+                        painter = painterResource(R.drawable.ic_mdi_credit_card_outline),
+                        contentDescription = null,
+                        tint = colour.colour,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.renew_subscription), color = colour.colour, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
     }
 }
 
+/** Whether a renewal threshold is crossed right now: expiry soon, or the traffic used past a panel's percent. */
+private fun shouldShowRenew(profile: Profile): Boolean {
+    val nowMillis = System.currentTimeMillis() + profile.clockSkewMillis
+    val expireDays = profile.notifyExpireDays ?: SubscriptionAlerts.DEFAULT_EXPIRE_DAYS
+    val expireSoon = profile.expire != 0L && expireDays.isNotEmpty() &&
+        (profile.expire - nowMillis).let { remaining ->
+            remaining <= 0L || expireDays.any { remaining <= it * DAY_MILLIS }
+        }
+    val trafficThresholds = profile.notifyTrafficPercent
+    val trafficSoon = SubscriptionAlerts.hasQuota(profile.total) && !trafficThresholds.isNullOrEmpty() &&
+        (profile.upload + profile.download).coerceAtLeast(0).let { used ->
+            trafficThresholds.any { threshold ->
+                val whole = used / profile.total * 100
+                val rest = used % profile.total * 100 / profile.total
+                whole + rest >= threshold
+            }
+        }
+    return expireSoon || trafficSoon
+}
+
+
 private val DAY_MILLIS = TimeUnit.DAYS.toMillis(1)
 
-@Composable
-private fun MainInfoRow(
-    icon: Int,
-    label: String,
-    value: String,
-    topMargin: androidx.compose.ui.unit.Dp = 8.dp,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = topMargin),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = scheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp),
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = scheme.onSurfaceVariant.copy(alpha = 0.7f),
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 8.dp),
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = scheme.onSurface,
-        )
-    }
-}
 
 @Composable
 private fun MainCardIcon(
     icon: Int,
     contentDescription: String?,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
-            .size(32.dp)
+        modifier = modifier
+            .size(36.dp)
             .clip(CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -687,8 +1178,73 @@ private fun MainCardIcon(
         Icon(
             painter = painterResource(icon),
             contentDescription = contentDescription,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = CardInk.primary,
             modifier = Modifier.size(22.dp),
         )
     }
+}
+
+/** Where the active card is on screen, frame by frame: plain fields, no recomposition. */
+private class DeckFold {
+    var cardBottom = 0f
+    /** The card's bottom on the folded Home at its top. */
+    var foldedCardBottom: Float? = null
+    var viewportBottom = 0f
+    var unfoldedAt = 0L
+    /** The card has been below its folded place since the deck unfolded. */
+    var armed = false
+    var foldingByCard = false
+    /** Folded at the card's place: Home goes back to its top once the folded deck is laid out. */
+    var scrollToTopPending = false
+    /** Just unfolded: Home keeps the card at [holdAt] once the unfolded deck is laid out. */
+    var holdPending = false
+    var holdAt = 0f
+    /** "Collapse" moving the deck up to the card's folded place: it folds when there. */
+    var gliding = false
+    /** The rest of the drag that folded the deck moves nothing. */
+    var swallowDrag = false
+
+    /** The unfolded deck scrolled so the card is back at its folded place. */
+    fun cardReachedFold(bottom: Float, margin: Float): Boolean {
+        val folded = foldedCardBottom ?: return false
+        if (System.currentTimeMillis() - unfoldedAt < 500) return false
+        if (bottom > folded + margin) armed = true
+        if (!armed || bottom > folded + 0.5f) return false
+        armed = false
+        return true
+    }
+}
+
+/**
+ * The deck's one glide, unfolding or folding, as iOS's: critically damped, no bounce, on frames —
+ * at most a 60th of a second a step, so a late first frame (the unfolded deck being made) does
+ * not leap — and done within a pixel and a half (a spring's tail crept on unseen for a third
+ * of a second before the deck could fold).
+ */
+private suspend fun ScrollState.glideTo(target: Int) {
+    val w = 14f
+    var x = value.toFloat()
+    var v = 0f
+    var last = -1L
+    scroll {
+        while (true) {
+            val now = withFrameNanos { it }
+            val dt = if (last < 0) 1f / 60f else ((now - last) / 1e9f).coerceAtMost(1f / 60f)
+            last = now
+            val d = x - target
+            val e = kotlin.math.exp(-w * dt)
+            val next = target + (d + (v + w * d) * dt) * e
+            v = (v - (v + w * d) * w * dt) * e
+            val done = abs(next - target) < 1.5f
+            val to = if (done) target.toFloat() else next
+            scrollBy(to - x)
+            x = to
+            if (done) break
+        }
+    }
+}
+
+/** The deck folding: Home back at its top with the cards. */
+private suspend fun foldToTop(scroll: ScrollState) {
+    scroll.animateScrollTo(0, spring(stiffness = Spring.StiffnessMediumLow))
 }

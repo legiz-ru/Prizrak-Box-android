@@ -29,6 +29,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.core.model.LogMessage
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.PreferenceCard
+import com.github.kr328.clash.design.compose.component.PreferenceList
+import com.github.kr328.clash.design.compose.component.listPadding
 import com.github.kr328.clash.design.util.format
 
 /**
@@ -52,58 +56,41 @@ fun LogcatScreen(
 
     LaunchedEffect(messages.size) {
         if (streaming && messages.isNotEmpty()) {
-            listState.scrollToItem(messages.size - 1)
+            // The list opens with a spacer: the last message is at messages.size.
+            listState.scrollToItem(messages.size)
         }
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(title) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    actions = {
-                        if (streaming) {
-                            IconButton(onClick = onClose) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_baseline_stop),
-                                    contentDescription = stringResource(R.string.stop),
-                                )
-                            }
-                        } else {
-                            IconButton(onClick = onDelete) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_baseline_delete),
-                                    contentDescription = stringResource(R.string.delete),
-                                )
-                            }
-                            IconButton(onClick = onExport) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_baseline_publish),
-                                    contentDescription = stringResource(R.string.export),
-                                )
-                            }
-                        }
-                    },
-                )
-            },
-        ) { inner ->
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(inner),
-            ) {
-                items(items = messages) { message ->
-                    LogMessageRow(message = message, onCopy = { onCopy(message) })
+    ExpressiveScaffold(
+        title = title,
+        onBack = onBack,
+        actions = {
+            if (streaming) {
+                IconButton(onClick = onClose) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_baseline_stop),
+                        contentDescription = stringResource(R.string.stop),
+                    )
                 }
+            } else {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_baseline_delete),
+                        contentDescription = stringResource(R.string.delete),
+                    )
+                }
+                IconButton(onClick = onExport) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_baseline_publish),
+                        contentDescription = stringResource(R.string.export),
+                    )
+                }
+            }
+        },
+    ) { inner ->
+        PreferenceList(modifier = Modifier.fillMaxSize(), state = listState, contentPadding = listPadding(inner)) {
+            items(messages) { message ->
+                LogMessageRow(message = message, onCopy = { onCopy(message) })
             }
         }
     }
@@ -113,11 +100,12 @@ fun LogcatScreen(
 @Composable
 private fun LogMessageRow(message: LogMessage, onCopy: () -> Unit) {
     val context = LocalContext.current
+    PreferenceCard {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = {}, onLongClick = onCopy)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -142,4 +130,5 @@ private fun LogMessageRow(message: LogMessage, onCopy: () -> Unit) {
             modifier = Modifier.padding(top = 2.dp),
         )
     }
+}
 }

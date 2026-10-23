@@ -26,6 +26,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.EmptyState
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.PreferenceList
+import com.github.kr328.clash.design.compose.component.PreferenceRow
+import com.github.kr328.clash.design.compose.component.listPadding
 import com.github.kr328.clash.design.model.LogFile
 import com.github.kr328.clash.design.util.format
 
@@ -37,65 +42,35 @@ import com.github.kr328.clash.design.util.format
 @Composable
 fun LogsScreen(
     files: List<LogFile>,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onStartLogcat: () -> Unit,
     onDeleteAll: () -> Unit,
     onOpenFile: (LogFile) -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.logs)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onStartLogcat) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_adb),
-                                contentDescription = stringResource(R.string.logcat),
-                            )
-                        }
-                        IconButton(onClick = onDeleteAll) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_clear_all),
-                                contentDescription = stringResource(R.string.delete_all_logs),
-                            )
-                        }
-                    },
+    ExpressiveScaffold(
+        title = stringResource(R.string.logs),
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = onStartLogcat) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_baseline_adb),
+                    contentDescription = stringResource(R.string.logcat),
                 )
-            },
-        ) { inner ->
-            if (files.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(inner),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(inner),
-                ) {
-                    items(items = files, key = { it.fileName }) { file ->
-                        Box(modifier = Modifier.animateItem()) {
-                            LogFileRow(file = file, onClick = { onOpenFile(file) })
-                        }
-                    }
+            }
+            IconButton(onClick = onDeleteAll) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_baseline_clear_all),
+                    contentDescription = stringResource(R.string.delete_all_logs),
+                )
+            }
+        },
+    ) { inner ->
+        if (files.isEmpty()) {
+            EmptyState(stringResource(R.string.empty), inner)
+        } else {
+            PreferenceList(modifier = Modifier.fillMaxSize(), contentPadding = listPadding(inner)) {
+                items(files, key = { it.fileName }) { file ->
+                    LogFileRow(file = file, onClick = { onOpenFile(file) }, modifier = Modifier.animateItem())
                 }
             }
         }
@@ -103,25 +78,8 @@ fun LogsScreen(
 }
 
 @Composable
-private fun LogFileRow(file: LogFile, onClick: () -> Unit) {
+private fun LogFileRow(file: LogFile, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val subtitle = remember(file) { file.date.format(context) }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 64.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-    ) {
-        Text(
-            text = file.fileName,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    PreferenceRow(title = file.fileName, summary = subtitle, onClick = onClick, modifier = modifier)
 }

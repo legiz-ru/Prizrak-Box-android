@@ -8,7 +8,7 @@ import com.github.kr328.clash.design.R
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.service.util.importedDir
 import com.github.kr328.clash.tv.TvCrypto
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.github.kr328.clash.design.compose.dialog.ExpressiveDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -57,7 +57,7 @@ suspend fun Activity.sendProfileToTv(tvUrl: String) {
 
     var pendingSelection = -1
     val confirmed = suspendCancellableCoroutine<Boolean> { continuation ->
-        val dialog = MaterialAlertDialogBuilder(this)
+        val dialog = ExpressiveDialog.Builder(this)
             .setTitle(getString(R.string.tv_send_profile_title, hostPort))
             .setSingleChoiceItems(displayItems, -1) { _, which ->
                 pendingSelection = which

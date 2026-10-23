@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
-import android.content.res.Configuration
 import android.net.Uri
 import android.os.IBinder
 import android.widget.Toast
@@ -22,10 +21,7 @@ import com.github.kr328.clash.common.util.ticker
 import com.github.kr328.clash.core.model.LogMessage
 import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.screen.LogcatScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
 import com.github.kr328.clash.design.dialog.withModelProgressBar
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.design.model.LogFile
 import com.github.kr328.clash.design.util.format
 import com.github.kr328.clash.log.LogcatFilter
@@ -68,7 +64,7 @@ class LogcatActivity : BaseActivity() {
         val title = file.date.format(this)
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val msgs by messagesFlow.collectAsStateWithLifecycle()
                 LogcatScreen(
                     title = title,
@@ -112,7 +108,7 @@ class LogcatActivity : BaseActivity() {
 
     private suspend fun mainStreaming() {
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val msgs by messagesFlow.collectAsStateWithLifecycle()
                 LogcatScreen(
                     title = getString(R.string.logs),
@@ -210,20 +206,5 @@ class LogcatActivity : BaseActivity() {
 
     private fun showInvalid() {
         Toast.makeText(this, R.string.invalid_log_file, Toast.LENGTH_LONG).show()
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
     }
 }

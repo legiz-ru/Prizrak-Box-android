@@ -76,9 +76,30 @@ class ServiceStore(context: Context) {
         defaultValue = true
     )
 
+    /**
+     * Debug → Auto Disconnect (Zashboard's "auto disconnect on node switch"):
+     * choosing another node in a group closes the connections going through
+     * that group, so apps reconnect through the new node at once.
+     */
+    var disconnectOnNodeSwitch by store.boolean(
+        key = "disconnect_on_node_switch",
+        defaultValue = true
+    )
+
+    /** Debug → Stack Mode: mipstack by default, as on iOS; system, gvisor or mixed otherwise. */
     var tunStackMode by store.string(
         key = "tun_stack_mode",
-        defaultValue = "system"
+        defaultValue = "mips"
+    )
+
+    /**
+     * mipstack's TCP congestion controller (Debug → Congestion Controller):
+     * cubic, reno, bbr or bbr3; "" for the core's default (CUBIC). The other
+     * stacks ignore it.
+     */
+    var tunCongestionController by store.string(
+        key = "tun_congestion_controller",
+        defaultValue = ""
     )
 
     var dynamicNotification by store.boolean(
@@ -127,4 +148,34 @@ class ServiceStore(context: Context) {
         key = "notify_subscription_alerts",
         defaultValue = true
     )
+
+    /**
+     * Debug → Zashboard: the core also opens its controller on
+     * [ZASHBOARD_HOST]:[ZASHBOARD_PORT] for the dashboard in Settings →
+     * Active Tunnel, the only controller while it is on.
+     */
+    var zashboardEnabled by store.boolean(
+        key = "zashboard_enabled",
+        defaultValue = false
+    )
+
+    /** Zashboard's secret: made the first time it is turned on, then kept. */
+    var zashboardSecret by store.string(
+        key = "zashboard_secret",
+        defaultValue = ""
+    )
+
+    /** [zashboardSecret], made now if there is none yet. */
+    fun makeZashboardSecretIfNeeded(): String {
+        zashboardSecret.takeIf { it.isNotEmpty() }?.let { return it }
+        val bytes = ByteArray(24).also { java.security.SecureRandom().nextBytes(it) }
+        val secret = bytes.joinToString("") { "%02x".format(it) }
+        zashboardSecret = secret
+        return secret
+    }
+
+    companion object {
+        const val ZASHBOARD_HOST = "127.0.0.1"
+        const val ZASHBOARD_PORT = 9090
+    }
 }

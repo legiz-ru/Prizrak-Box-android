@@ -30,6 +30,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.core.model.Provider
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.BusyIndicator
+import com.github.kr328.clash.design.compose.component.EmptyState
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.PreferenceList
+import com.github.kr328.clash.design.compose.component.PreferenceRow
+import com.github.kr328.clash.design.compose.component.listPadding
 import com.github.kr328.clash.design.util.elapsedIntervalString
 import com.github.kr328.clash.design.util.type
 
@@ -51,58 +57,31 @@ data class ProviderItem(
 fun ProvidersScreen(
     providers: List<ProviderItem>,
     tick: Int,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onOpen: (Provider) -> Unit,
     onUpdateAll: () -> Unit,
+    loading: Boolean = false,
 ) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.providers)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onUpdateAll) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_sync),
-                                contentDescription = stringResource(R.string.update_all),
-                            )
-                        }
-                    },
+    ExpressiveScaffold(
+        title = stringResource(R.string.providers),
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = onUpdateAll) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_baseline_sync),
+                    contentDescription = stringResource(R.string.update_all),
                 )
-            },
-        ) { inner ->
-            if (providers.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(inner),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(inner),
-                ) {
-                    items(items = providers, key = { "${it.provider.type}:${it.provider.name}" }) { item ->
-                        Box(modifier = Modifier.animateItem()) {
-                            ProviderRow(item = item, tick = tick, onClick = { onOpen(item.provider) })
-                        }
-                    }
+            }
+        },
+    ) { inner ->
+        if (providers.isEmpty() && loading) {
+            Box(Modifier.fillMaxSize().padding(inner), contentAlignment = Alignment.Center) { BusyIndicator(size = 48.dp) }
+        } else if (providers.isEmpty()) {
+            EmptyState(stringResource(R.string.empty), inner)
+        } else {
+            PreferenceList(modifier = Modifier.fillMaxSize(), contentPadding = listPadding(inner)) {
+                items(providers, key = { "${it.provider.type}:${it.provider.name}" }) { item ->
+                    ProviderRow(item = item, tick = tick, onClick = { onOpen(item.provider) }, modifier = Modifier.animateItem())
                 }
             }
         }
@@ -111,7 +90,7 @@ fun ProvidersScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProviderRow(item: ProviderItem, tick: Int, onClick: () -> Unit) {
+private fun ProviderRow(item: ProviderItem, tick: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val subtitle = remember(item.provider, item.updatedAt, tick) {
         val typeStr = item.provider.type(context)
@@ -122,23 +101,20 @@ private fun ProviderRow(item: ProviderItem, tick: Int, onClick: () -> Unit) {
             "$typeStr • $elapsed"
         }
     }
-    ListItem(
-        headlineContent = { Text(item.provider.name) },
-        supportingContent = { Text(subtitle) },
-        trailingContent = {
+    PreferenceRow(
+        title = item.provider.name,
+        summary = subtitle,
+        onClick = onClick,
+        modifier = modifier,
+        trailing = {
             if (item.updating) {
-                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                BusyIndicator()
             } else {
                 Icon(
                     painter = painterResource(R.drawable.ic_baseline_chevron_right),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
     )
 }

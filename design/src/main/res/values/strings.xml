@@ -31,7 +31,7 @@
 
     <string name="copied">Copied</string>
 
-    <string name="recently">Recently</string>
+    <string name="recently">Now</string>
 
     <string name="format_minutes">%d min</string>
     <string name="format_elements">%d elements</string>
@@ -257,7 +257,6 @@
     <string name="follow_system_android_10">Follow System (Android 10+)</string>
     <string name="always_dark">Always Dark</string>
     <string name="always_light">Always Light</string>
-    <string name="always_summer">Always Summer 🥒</string>
 
     <string name="tun_stack_mode">Stack Mode</string>
     <string name="tun_stack_system">System Stack</string>
@@ -655,9 +654,213 @@
     <string name="open_channel_settings">Sound and vibration for this notification</string>
     <string name="notification_permission_ask_title">Show notifications?</string>
     <string name="notification_permission_ask_later">Not now</string>
-    <string name="notification_permission_ask_text">The app needs the notification permission to show the tunnel status and subscription warnings.</string>
+    <string name="notification_permission_ask_text">The app needs the notification permission to show the tunnel status and warnings when the subscription is about to expire or run out of traffic.</string>
     <string name="notification_permission_ask_allow">Allow</string>
     <string name="notification_permission_blocked">Notifications are blocked in system settings — nothing below will actually show up until this is fixed.</string>
     <string name="notification_open_settings">Open settings</string>
     <string name="notification_permission_blocked_short">Blocked in system settings</string>
+
+    <!-- Settings → Visual (as on iOS) -->
+    <string name="visual">Interface</string>
+    <string name="visual_summary">Theme, accent color, delay display</string>
+    <string name="visual_theme">Theme</string>
+    <string name="theme_auto">Auto</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+    <string name="accent_color">Accent Color</string>
+    <string name="accent_profile">Profile\'s Colour</string>
+    <string name="accent_green">Green</string>
+    <string name="accent_indigo">Indigo</string>
+    <string name="accent_emerald">Emerald</string>
+    <string name="accent_red">Red</string>
+    <string name="accent_amber">Amber</string>
+    <string name="accent_blue">Blue</string>
+    <string name="accent_personalisation">Personalisation</string>
+    <string name="accent_palette">Palette</string>
+    <string name="accent_grid">Grid</string>
+    <string name="accent_spectrum">Spectrum</string>
+    <string name="accent_examples">Examples</string>
+    <string name="accent_saved_hint">The colour becomes the accent once saved.</string>
+    <string name="accent_hex_hint">6 characters: digits 0–9 and letters A–F</string>
+    <string name="accent_locked">The accent is set by the profile «%1$s». Your choice below comes back when the profile theme is off.</string>
+    <string name="profile_theme">Profile Theme</string>
+    <string name="profile_theme_footer">Turn it off to use your own settings; they are kept.</string>
+    <string name="profile_theme_leaves">«%1$s» leaves the look to you.</string>
+    <string name="profile_theme_sets">«%1$s» sets: %2$s</string>
+    <string name="profile_theme_part_accent">accent</string>
+    <string name="profile_theme_part_card">card</string>
+    <string name="profile_theme_part_theme">theme</string>
+    <string name="profile_theme_part_background">background</string>
+    <string name="set_by_profile">Set by the profile</string>
+    <string name="from_profile">From the profile</string>
+
+    <!-- Settings → Visual → Home Background (as on iOS) -->
+    <string name="home_background">Home Background</string>
+    <string name="bg_clean">Clean</string>
+    <string name="bg_big_ghost">Big Ghost</string>
+    <string name="bg_dot_grid">Dot Grid</string>
+    <string name="bg_hem">Ghost Hem</string>
+    <string name="bg_signal">Signal</string>
+    <string name="bg_ghost_pattern">Ghost Pattern</string>
+    <string name="bg_topography">Topography</string>
+    <string name="bg_cucumber">Cucumber</string>
+    <string name="bg_mushroomia">Mushroomia</string>
+    <string name="bg_clean_detail">The system background, nothing behind the cards.</string>
+    <string name="bg_big_ghost_detail">A huge ghost behind the cards; it floats while connected.</string>
+    <string name="bg_dot_grid_detail">A quiet grid of dots; light sweeps over it while connected.</string>
+    <string name="bg_hem_detail">The bottom waves like the ghost\'s hem; it rises and flows while connected.</string>
+    <string name="bg_signal_detail">Rings around the connect button; waves from the power button while connected.</string>
+    <string name="bg_ghost_pattern_detail">A small pattern of ghosts; it drifts while connected.</string>
+    <string name="bg_topography_detail">Contour lines like a relief map; they turn slowly while connected.</string>
+    <string name="bg_cucumber_detail">Cucumbers, pickle jars and baskets; the pattern drifts while connected.</string>
+    <string name="bg_mushroomia_detail">A glowing mushroom forest behind glass cards; it lights up while connected.</string>
+    <string name="bg_locked">The background is set by the profile «%1$s»: %2$s. Your choice below comes back when the profile theme is off.</string>
+    <string name="bg_footer">The background moves only while the VPN is on, and stands still with animations turned off in Android\'s settings.</string>
+    <string name="bg_full_screen">Full-Screen Preview</string>
+    <string name="bg_preview_hint_on">The power button here shows the background as with the profile on; it connects nothing.</string>
+    <string name="bg_preview_hint_off">The power button here only shows the background with the profile off and on; it connects nothing.</string>
+    <string name="bg_vpn_on">VPN on</string>
+    <string name="bg_vpn_off">VPN off</string>
+    <string name="bg_apply">Apply</string>
+    <string name="bg_applied">Applied</string>
+
+    <!-- Home, the ghost while the tunnel starts -->
+    <string name="connecting">Connecting…</string>
+
+    <!-- Settings, About and Debug (as on iOS) -->
+    <string name="debug_subscription">Subscription</string>
+    <string name="debug_core">Core</string>
+    <string name="debug_app">App</string>
+    <string name="congestion_controller">Congestion Controller</string>
+    <string name="congestion_default">Default (CUBIC)</string>
+    <string name="debug_stack_footer">Changes while the VPN is off. The congestion controller paces TCP inside mipstack; CUBIC is the default.</string>
+    <string name="auto_disconnect">Auto Disconnect</string>
+    <string name="auto_disconnect_footer">Choosing another node in a group closes the connections going through that group, so apps reconnect through the new node at once. Off, they stay on the old node until they end.</string>
+    <string name="settings_device">Device</string>
+    <string name="settings_active_tunnel">Active Tunnel</string>
+    <string name="settings_about_app">About</string>
+    <string name="settings_diagnostics">Diagnostics</string>
+    <string name="app_version">App version</string>
+    <string name="core_version">Core</string>
+    <string name="session_logs">Session Logs</string>
+    <string name="vpn_status">VPN Status</string>
+    <string name="vpn_connected">Connected</string>
+    <string name="vpn_disconnected">Disconnected</string>
+    <string name="memory">Memory</string>
+    <string name="about_the_app">About</string>
+    <string name="about_version">Version</string>
+    <string name="about_build">Build</string>
+    <string name="about_documentation">Documentation</string>
+
+    <!-- Home's deck of profiles (as on iOS) -->
+    <string name="deck_collapse">Collapse</string>
+    <string name="deck_update_all">Update all</string>
+    <string name="deck_file">file</string>
+    <string name="deck_expired">Expired</string>
+    <string name="deck_until">until %1$s</string>
+    <string name="deck_update_failed">Couldn\'t update the profile</string>
+    <string name="deck_make_active">Make the profile “%1$s” active?</string>
+    <string name="deck_yes">Yes</string>
+    <plurals name="deck_more_profiles">
+        <item quantity="one">%d more profile</item>
+        <item quantity="other">%d more profiles</item>
+    </plurals>
+
+    <!-- A profile opened from Home's deck (as on iOS) -->
+    <string name="opened_make_active">Make Active</string>
+    <string name="opened_active">Active</string>
+    <string name="opened_update">Update Subscription</string>
+    <string name="opened_renew">Renew</string>
+    <string name="opened_support">Support</string>
+    <string name="opened_website">Website</string>
+    <string name="opened_announcement">Announcement</string>
+    <string name="opened_edit">Edit Profile</string>
+    <string name="opened_delete">Delete Profile</string>
+    <string name="opened_delete_title">Delete Profile?</string>
+    <string name="opened_delete_message">“%1$s” will be deleted. This cannot be undone.</string>
+    <!-- Wide screens: tablets and unfolded foldables -->
+    <string name="wide_groups_after_connect">Server management will be available once turned on</string>
+    <string name="wide_select_section">Select a section</string>
+    <string name="wide_select_profile">Select a profile</string>
+    <string name="wide_profiles_count">Profiles · %d</string>
+
+    <!-- Zashboard -->
+    <string name="zashboard_footer">Opens the core\'s controller on 127.0.0.1:9090 for the Zashboard dashboard in Settings → Active Tunnel, guarded by Zashboard\'s own secret, made once and kept. While it is on, it is the only controller: the controller settings in Override are cleared and locked, and a profile\'s own controller gives way to it.</string>
+    <string name="zashboard_enable_title">Turn on Zashboard?</string>
+    <string name="zashboard_enable_clears">The External Controller group in Override is cleared — the address, its TLS, CORS and Secret: while Zashboard is on, its controller is the only one.</string>
+    <string name="zashboard_enable_reloads">The running VPN reloads its configuration with the controller open to Zashboard.</string>
+    <string name="zashboard_turn_on">Turn On</string>
+    <string name="zashboard_minimize">Minimize Zashboard</string>
+    <string name="zashboard_show">Show Zashboard</string>
+    <string name="zashboard_close">Close Zashboard</string>
+    <string name="zashboard_stop_vpn">Stop VPN</string>
+    <string name="zashboard_menu">Zashboard menu</string>
+    <string name="override_external_controller">External Controller</string>
+    <string name="override_zashboard_locked">Debug → Zashboard holds the controller: 127.0.0.1:9090 with its own secret. These settings are off while it is on.</string>
+
+    <!-- Partial Reset -->
+    <string name="partial_reset">Partial Reset</string>
+    <string name="partial_reset_footer">Choose what to reset: settings, hints, caches, logs, profiles.</string>
+    <string name="reset_group_hints">Hints and Notifications</string>
+    <string name="reset_group_data">Data</string>
+    <string name="reset_group_profiles">Profiles</string>
+    <string name="reset_notification_prompt">Notifications request</string>
+    <string name="reset_notification_prompt_detail">Asked again at the next connection while notifications are not allowed.</string>
+    <string name="reset_reminder_history">Reminders already shown</string>
+    <string name="reset_reminder_history_detail">Expiry and traffic reminders that already came will come again; delivered notifications are removed.</string>
+    <string name="reset_notification_settings">Notification settings</string>
+    <string name="reset_notification_settings_detail">Status notification, update progress, update errors and subscription reminders.</string>
+    <string name="reset_appearance">Language, theme and host status</string>
+    <string name="reset_appearance_detail">Language and theme follow the system, the accent, Home background and profile theme go back, host status shows the indicator.</string>
+    <string name="reset_sorting">Sorting and last opened groups</string>
+    <string name="reset_sorting_detail">Node order in groups, the last opened group, the order of the app list in access control.</string>
+    <string name="reset_network">Network and access control</string>
+    <string name="reset_network_detail">Everything in Settings → Network, with the list of apps for access control. A running VPN restarts.</string>
+    <string name="reset_core">Core settings</string>
+    <string name="reset_core_detail">Network stack, congestion controller, Auto Disconnect, Override and Meta Features, Zashboard with its secret. A running VPN restarts.</string>
+    <string name="reset_hwid">HWID sending</string>
+    <string name="reset_hwid_detail">Turns the HWID headers back on. The device ID itself stays.</string>
+    <string name="reset_logo_cache">Logos and group icons</string>
+    <string name="reset_logo_cache_detail">Downloaded again when shown.</string>
+    <string name="reset_session_logs_detail">All saved session logs; the one being recorded now stays.</string>
+    <string name="reset_core_cache">Core cache</string>
+    <string name="reset_core_cache_detail">Nodes chosen in groups and fake-ip addresses (cache.db). Only with the VPN off.</string>
+    <string name="reset_downloads">Downloaded rules and databases</string>
+    <string name="reset_downloads_detail">Rule and proxy providers, and the GeoIP / GeoSite databases back to the ones in the app; the core downloads providers again on the next connection. Only with the VPN off.</string>
+    <string name="reset_zashboard">Zashboard data</string>
+    <string name="reset_zashboard_detail">The dashboard\'s settings, saved backends and cache. An open dashboard closes.</string>
+    <string name="reset_profiles">All profiles</string>
+    <string name="reset_profiles_detail">Profiles, their files and per-profile settings. The VPN turns off.</string>
+    <string name="reset_select_all">Select All</string>
+    <string name="reset_deselect_all">Deselect All</string>
+    <string name="reset_confirm_title">Reset the selected?</string>
+    <string name="reset_action">Reset</string>
+    <string name="reset_done_title">Reset complete</string>
+    <string name="reset_done_message">The selected data was reset.</string>
+    <string name="reset_select_hint">Select what to reset</string>
+    <string name="reset_selected_count">Reset Selected (%d)</string>
+
+    <!-- Access control: the subscription's own app lists -->
+    <string name="access_control_bypass_from_subscription">Bypasses VPN (from subscription)</string>
+    <string name="access_control_through_from_subscription">Through VPN (from subscription)</string>
+    <string name="access_control_subscription_exclude_hint">Apps marked “from subscription” go around the VPN by the profile\'s own settings, in any mode. Apps ticked here in “Deny selected apps” are added to them.</string>
+    <string name="access_control_subscription_include_hint">The profile lets only the apps marked “from subscription” through the VPN. Apps ticked here in “Allow selected apps” are added to them; “Deny selected apps” has no effect with such a profile.</string>
+    <string name="xiaomi_autostart_hint">Allow Autostart for Prizrak-Box on this screen: without it the system does not let the VPN start after a reboot.</string>
+    <!-- Settings → Service -->
+    <string name="service_settings">Service</string>
+    <string name="release_ui_background">Release UI in Background</string>
+    <string name="release_ui_background_summary">Close the app\'s screens when it goes to the background while the VPN runs; the VPN keeps working and the app uses less memory</string>
+    <string name="battery_unrestricted">Unrestricted Battery</string>
+    <string name="battery_unrestricted_on">Unrestricted: the system does not hold the VPN back</string>
+    <string name="battery_unrestricted_off">Restricted — tap to remove the restriction</string>
+    <string name="battery_unrestricted_already">Battery optimization is already off for Prizrak-Box</string>
+    <string name="battery_unrestricted_footer">With battery optimization the system may stop the VPN in the background or delay its auto restart.</string>
+    <string name="tv_profiles_hint">Select — make active · Down — actions</string>
+    <string name="tv_profiles_hint_tabs">Down — choose a profile</string>
+    <string name="tv_profiles_hint_deck">Left / Right — another profile · Select — make active · Down — its actions</string>
+    <string name="tv_profiles_hint_deck_active">The active profile · Left / Right — another profile · Down — its actions</string>
+    <string name="tv_profiles_hint_actions">Up — back to the profiles · Left / Right — other actions</string>
+    <string name="tv_play_pause_hint">Play/Pause on the remote connects or disconnects</string>
+    <string name="servers">Servers</string>
+    <string name="about_more">More details</string>
 </resources>

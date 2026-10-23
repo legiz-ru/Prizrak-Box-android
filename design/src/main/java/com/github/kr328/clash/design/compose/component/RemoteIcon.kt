@@ -28,6 +28,11 @@ object IconLoader {
 
         return ProfileLogoLoader.load(context, url)?.also { cache[url] = it }
     }
+
+    /** Debug → Partial Reset → Logos: what was loaded in this process goes too. */
+    fun clear() {
+        cache.clear()
+    }
 }
 
 /**

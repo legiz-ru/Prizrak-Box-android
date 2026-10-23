@@ -7,12 +7,12 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.getSystemService
 import com.github.kr328.clash.design.R
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.github.kr328.clash.design.compose.dialog.ExpressiveDialog
 
 // ─── Shared pop-up menus ──────────────────────────────────────────────────────
 
 fun showIpMenu(context: Context, ip: String) {
-    MaterialAlertDialogBuilder(context)
+    ExpressiveDialog.Builder(context)
         .setItems(arrayOf(
             context.getString(R.string.copy_address),
             context.getString(R.string.open_ip_info),
@@ -28,7 +28,7 @@ fun showIpMenu(context: Context, ip: String) {
 }
 
 fun showHostMenu(context: Context, host: String) {
-    MaterialAlertDialogBuilder(context)
+    ExpressiveDialog.Builder(context)
         .setItems(arrayOf(
             context.getString(R.string.copy_host),
             context.getString(R.string.open_in_browser),
@@ -44,7 +44,7 @@ fun showHostMenu(context: Context, host: String) {
 }
 
 fun showProcessMenu(context: Context, packageName: String) {
-    MaterialAlertDialogBuilder(context)
+    ExpressiveDialog.Builder(context)
         .setItems(arrayOf(
             context.getString(R.string.copy_process_name),
             context.getString(R.string.open_app),

@@ -5,6 +5,10 @@ import (
 )
 
 func QueryConnections() *statistic.Snapshot {
+	// The snapshot carries the process's memory (RSS) as last measured, which
+	// only the controller's /memory refreshes: measure it now, for Settings →
+	// Diagnostics → Memory.
+	statistic.DefaultManager.Memory()
 	return statistic.DefaultManager.Snapshot()
 }
 

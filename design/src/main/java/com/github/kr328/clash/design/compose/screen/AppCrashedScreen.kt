@@ -20,6 +20,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.PreferenceCard
+import com.github.kr328.clash.design.compose.component.listPadding
 
 /**
  * Crash diagnostics dump (1:1 with AppCrashedDesign, restyled to MD3E). Shows
@@ -31,28 +34,14 @@ fun AppCrashedScreen(
     logs: String,
     onBack: () -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.application_crashed)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                )
-            },
-        ) { inner ->
-            SelectionContainer(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(inner)
-                    .verticalScroll(rememberScrollState()),
-            ) {
+    ExpressiveScaffold(title = stringResource(R.string.application_crashed), onBack = onBack) { inner ->
+        SelectionContainer(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(listPadding(inner)),
+        ) {
+            PreferenceCard {
                 Text(
                     text = logs,
                     style = MaterialTheme.typography.bodySmall,

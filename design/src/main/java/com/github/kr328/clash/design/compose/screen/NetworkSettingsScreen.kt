@@ -11,7 +11,6 @@ import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.component.PreferenceRow
 import com.github.kr328.clash.design.compose.component.PreferenceScaffold
 import com.github.kr328.clash.design.compose.component.SettingsCategory
-import com.github.kr328.clash.design.compose.component.SingleChoiceDialog
 import com.github.kr328.clash.design.compose.component.SwitchPreference
 import com.github.kr328.clash.design.store.UiStore
 import com.github.kr328.clash.service.store.ServiceStore
@@ -25,25 +24,15 @@ fun NetworkSettingsScreen(
     uiStore: UiStore,
     srvStore: ServiceStore,
     running: Boolean,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onAccessControlPackages: () -> Unit,
 ) {
-    var showTunStack by remember { mutableStateOf(false) }
-
     // Snapshot state mirrors of the persisted stores so rows reflect changes immediately
     // (read inside each item) without a rev/bump recompose trigger.
     var enableVpn by remember { mutableStateOf(uiStore.enableVpn) }
-    var tunStackMode by remember { mutableStateOf(srvStore.tunStackMode) }
     var resetConnections by remember { mutableStateOf(srvStore.resetConnectionsOnNetworkChange) }
 
     val vpnEnabled = !running
-
-    val tunStackOptions = listOf(
-        "system" to stringResource(R.string.tun_stack_system),
-        "gvisor" to stringResource(R.string.tun_stack_gvisor),
-        "mixed" to stringResource(R.string.tun_stack_mixed),
-        "mips" to stringResource(R.string.tun_stack_mips),
-    )
 
     PreferenceScaffold(title = stringResource(R.string.network), onBack = onBack) {
         item {
@@ -57,7 +46,7 @@ fun NetworkSettingsScreen(
             )
         }
 
-        item { SettingsCategory(stringResource(R.string.vpn_service_options)) }
+        category(R.string.vpn_service_options)
         item {
             SwitchPreference(
                 title = stringResource(R.string.bypass_private_network),
@@ -105,14 +94,6 @@ fun NetworkSettingsScreen(
                 )
             }
         }
-        item {
-            PreferenceRow(
-                title = stringResource(R.string.tun_stack_mode),
-                summary = tunStackOptions.firstOrNull { it.first == tunStackMode }?.second,
-                enabled = enableVpn && !running,
-                onClick = { showTunStack = true },
-            )
-        }
         // One entry, not two: the mode and the app list are the same setting,
         // and the mode moved onto the list screen where it applies. Not gated on
         // `running` — that screen restarts the tunnel itself when something
@@ -129,7 +110,7 @@ fun NetworkSettingsScreen(
         // this screen describes how to bring the tunnel up and only changes
         // while it is down. This one is read on the fly, at the moment of the
         // network change — so it can be flipped on the go too.
-        item { SettingsCategory(stringResource(R.string.network_switch)) }
+        category(R.string.network_switch)
         item {
             SwitchPreference(
                 title = stringResource(R.string.reset_connections),
@@ -138,15 +119,5 @@ fun NetworkSettingsScreen(
                 onCheckedChange = { srvStore.resetConnectionsOnNetworkChange = it; resetConnections = it },
             )
         }
-    }
-
-    if (showTunStack) {
-        SingleChoiceDialog(
-            title = stringResource(R.string.tun_stack_mode),
-            options = tunStackOptions,
-            selected = tunStackMode,
-            onSelect = { srvStore.tunStackMode = it; tunStackMode = it },
-            onDismiss = { showTunStack = false },
-        )
     }
 }

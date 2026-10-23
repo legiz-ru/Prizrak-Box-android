@@ -1,27 +1,18 @@
 package com.github.kr328.clash
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
-import android.content.res.Configuration
 import android.database.Cursor
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.view.LayoutInflater
-import android.widget.RadioGroup
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import com.github.kr328.clash.core.Clash
 import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.screen.MetaFeatureSettingsScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.util.GetContentCompat
 import com.github.kr328.clash.util.clashDir
 import com.github.kr328.clash.util.withClash
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.github.kr328.clash.design.compose.dialog.ExpressiveDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
@@ -48,7 +39,7 @@ class MetaFeatureSettingsActivity : BaseActivity() {
         }
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 MetaFeatureSettingsScreen(
                     configuration = configuration,
                     onBack = { finish() },
@@ -57,7 +48,6 @@ class MetaFeatureSettingsActivity : BaseActivity() {
                     onImportGeoSite = { launchImport(GeoImport.GeoSite) },
                     onImportCountry = { launchImport(GeoImport.Country) },
                     onImportASN = { launchImport(GeoImport.ASN) },
-                    onGenerateAgeKeyPair = { showAgeKeypairDialog() },
                 )
             }
         }
@@ -88,10 +78,10 @@ class MetaFeatureSettingsActivity : BaseActivity() {
 
     private suspend fun requestResetConfirm(): Boolean {
         return suspendCancellableCoroutine { ctx ->
-            val dialog = MaterialAlertDialogBuilder(this)
+            val dialog = ExpressiveDialog.Builder(this)
                 .setTitle(R.string.reset_override_settings)
                 .setMessage(R.string.reset_override_settings_message)
-                .setPositiveButton(R.string.ok) { _, _ -> ctx.resume(true) }
+                .setDestructiveButton(R.string.ok) { _, _ -> ctx.resume(true) }
                 .setNegativeButton(R.string.cancel) { _, _ -> }
                 .show()
 
@@ -101,69 +91,6 @@ class MetaFeatureSettingsActivity : BaseActivity() {
 
             ctx.invokeOnCancellation { dialog.dismiss() }
         }
-    }
-
-    private fun copyToClipboard(label: String, text: String) {
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
-        Toast.makeText(this, R.string.copied, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun showAgeKeypairDialog() {
-        val dialogView = LayoutInflater.from(this)
-            .inflate(R.layout.dialog_age_keypair, null)
-
-        val radioGroup = dialogView.findViewById<RadioGroup>(R.id.key_type_group)
-        val btnRegenerate = dialogView.findViewById<android.widget.ImageButton>(R.id.btn_regenerate)
-        val publicKeyText = dialogView.findViewById<TextView>(R.id.public_key_text)
-        val privateKeyText = dialogView.findViewById<TextView>(R.id.private_key_text)
-        val btnCopyPublic = dialogView.findViewById<android.widget.ImageButton>(R.id.btn_copy_public)
-        val btnCopyPrivate = dialogView.findViewById<android.widget.ImageButton>(R.id.btn_copy_private)
-
-        var currentKeyType = "MLKEM768-X25519"
-        var currentPublicKey = ""
-        var currentPrivateKey = ""
-
-        fun updateKeys(secretKey: String, publicKey: String) {
-            currentPublicKey = publicKey
-            currentPrivateKey = secretKey
-            publicKeyText.text = publicKey
-            privateKeyText.text = secretKey
-        }
-
-        fun regenerate() {
-            val pair = Clash.generateAgeKeyPair(currentKeyType)
-            if (pair != null) {
-                updateKeys(pair.first, pair.second)
-            }
-        }
-
-        regenerate()
-
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.age_keypair_result_title)
-            .setView(dialogView)
-            .setPositiveButton(R.string.ok) { _, _ -> }
-            .create()
-
-        radioGroup.setOnCheckedChangeListener { _, checkedId ->
-            currentKeyType = if (checkedId == R.id.radio_x25519) "X25519" else "MLKEM768-X25519"
-            regenerate()
-        }
-
-        btnRegenerate.setOnClickListener { regenerate() }
-
-        btnCopyPublic.setOnClickListener {
-            if (currentPublicKey.isNotEmpty())
-                copyToClipboard(getString(R.string.age_public_key), currentPublicKey)
-        }
-
-        btnCopyPrivate.setOnClickListener {
-            if (currentPrivateKey.isNotEmpty())
-                copyToClipboard(getString(R.string.age_private_key), currentPrivateKey)
-        }
-
-        dialog.show()
     }
 
     private val validDatabaseExtensions = listOf(
@@ -182,7 +109,7 @@ class MetaFeatureSettingsActivity : BaseActivity() {
                 val ext = "." + displayName.substringAfterLast(".")
 
                 if (!validDatabaseExtensions.contains(ext)) {
-                    MaterialAlertDialogBuilder(this)
+                    ExpressiveDialog.Builder(this)
                         .setTitle(R.string.geofile_unknown_db_format)
                         .setMessage(
                             getString(
@@ -218,20 +145,5 @@ class MetaFeatureSettingsActivity : BaseActivity() {
             }
         }
         Toast.makeText(this, R.string.geofile_import_failed, Toast.LENGTH_LONG).show()
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
     }
 }

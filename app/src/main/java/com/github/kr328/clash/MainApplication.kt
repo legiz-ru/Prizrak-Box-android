@@ -18,6 +18,9 @@ import com.github.kr328.clash.service.subscription.createSubscriptionAlertChanne
 import com.github.kr328.clash.service.util.sendServiceRecreated
 import com.github.kr328.clash.update.UpdateChecker
 import com.github.kr328.clash.util.clashDir
+import com.github.kr328.clash.zashboard.ZashboardSession
+import com.github.kr328.clash.design.store.UiStore
+import com.github.kr328.clash.util.ApplicationObserver
 import java.io.File
 import java.io.FileOutputStream
 import com.github.kr328.clash.design.R as DesignR
@@ -53,6 +56,27 @@ class MainApplication : Application() {
         } else {
             sendServiceRecreated()
         }
+    }
+
+    private val releaseUi = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /**
+     * Settings → Service → Release UI in Background: once the app has been in
+     * the background a while with the VPN running, its screens close — the
+     * VPN lives in its own process and keeps going. Not at once: the app's
+     * own trips to a system screen (a permission, the browser) hide it too.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level < TRIM_MEMORY_UI_HIDDEN || currentProcessName != packageName) return
+        releaseUi.removeCallbacksAndMessages(null)
+        releaseUi.postDelayed({
+            if (ApplicationObserver.isAppVisible) return@postDelayed
+            if (!UiStore(this).releaseUiInBackground || !Remote.broadcasts.clashRunning) return@postDelayed
+            Log.i("Release UI in background")
+            ZashboardSession.close()
+            ApplicationObserver.createdActivities.toList().forEach { it.finishAndRemoveTask() }
+        }, RELEASE_UI_DELAY_MS)
     }
 
     private fun setupShortcuts() {
@@ -170,5 +194,9 @@ class MainApplication : Application() {
 
     fun finalize() {
         Global.destroy()
+    }
+
+    private companion object {
+        const val RELEASE_UI_DELAY_MS = 10_000L
     }
 }

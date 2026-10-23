@@ -525,12 +525,24 @@ object ProfileProcessor {
                     parts[0].contains("upload")   -> out[0] = BigDecimal(v.split('.').first()).longValueExact()
                     parts[0].contains("download") -> out[1] = BigDecimal(v.split('.').first()).longValueExact()
                     parts[0].contains("total")    -> out[2] = BigDecimal(v.split('.').first()).longValueExact()
-                    parts[0].contains("expire")   -> out[3] = (v.toDouble() * 1000).toLong()
+                    parts[0].contains("expire")   -> out[3] = expireMillis(v.toDouble())
                 }
             }
         } catch (_: Exception) {}
         return out
     }
+
+    /**
+     * `expire` in seconds → milliseconds, 0 for a subscription without an end:
+     * panels send `expire=0` for it (Marzban, 3x-ui) or a date in 2099 or later
+     * (Remnawave's "unlimited") — no Expires row and no reminders for either,
+     * not a date decades away.
+     */
+    internal fun expireMillis(seconds: Double): Long =
+        if (seconds <= 0 || seconds >= ENDLESS_FROM_SECONDS) 0 else (seconds * 1000).toLong()
+
+    /** 1 January 2099 00:00 UTC. */
+    private const val ENDLESS_FROM_SECONDS = 4_070_908_800.0
 
     /**
      * Downloads a YAML template from [url]. Returns null on any error so the
@@ -1322,6 +1334,15 @@ object ProfileProcessor {
     suspend fun delete(context: Context, uuid: UUID) {
         withContext(NonCancellable) {
             profileLock.withLock {
+                // The active profile's place goes to its neighbour in the list
+                // (the one after it, or before it for the last), never to "no
+                // profile" while others are left — Home would show the
+                // first-launch screen. A running tunnel stops (ConfigurationModule).
+                val store = ServiceStore(context)
+                if (store.activeProfile == uuid) {
+                    store.activeProfile = successor(ImportedDao().queryAllUUIDs(), uuid)
+                }
+
                 ImportedDao().remove(uuid)
                 PendingDao().remove(uuid)
 
@@ -1334,6 +1355,14 @@ object ProfileProcessor {
                 context.sendProfileChanged(uuid)
             }
         }
+    }
+
+    /** The profile after [deleted] in [ordered], or before it when it was last; null when none is left. */
+    internal fun successor(ordered: List<UUID>, deleted: UUID): UUID? {
+        val index = ordered.indexOf(deleted)
+        val others = ordered.filter { it != deleted }
+        if (others.isEmpty()) return null
+        return if (index < 0) others.first() else others[index.coerceAtMost(others.size - 1)]
     }
 
     suspend fun release(context: Context, uuid: UUID): Boolean {
@@ -1375,6 +1404,8 @@ object ProfileProcessor {
         val connsViewMp: Boolean = false,
         val rpMp: Boolean = false,
         val simpleMode: Boolean = false,
+        /** Raw `pxa-theme` value, "" without one. */
+        val pxaTheme: String = "",
         val fallbackUrl: String = "",
         val fallbackDomain: String = "",
         /**
@@ -1499,6 +1530,8 @@ object ProfileProcessor {
             if (headers["pxa-conns-view-mp"]?.trim() == "1") json.put("pxa_conns_view_mp", true)
             if (headers["pxa-rp-mp"]?.trim() == "1") json.put("pxa_rp_mp", true)
             if (headers["pxa-simple-mode"]?.trim() == "1") json.put("pxa_simple_mode", true)
+            // Kept raw, parsed where it is used (ProfileTheme); absent => cleared.
+            headers["pxa-theme"]?.trim()?.let { if (it.isNotEmpty()) json.put("pxa_theme", it) }
             // Subscription fallback endpoints (absent header => not written => cleared on read).
             headers["fallback-url"]?.trim()?.let { if (it.isNotBlank()) json.put("fallback_url", it) }
             headers["fallback-domain"]?.trim()?.let { if (it.isNotBlank()) json.put("fallback_domain", it) }
@@ -1556,6 +1589,7 @@ object ProfileProcessor {
                     connsViewMp = json.optBoolean("pxa_conns_view_mp", false),
                     rpMp = json.optBoolean("pxa_rp_mp", false),
                     simpleMode = json.optBoolean("pxa_simple_mode", false),
+                    pxaTheme = json.optString("pxa_theme", ""),
                     fallbackUrl = json.optString("fallback_url", ""),
                     fallbackDomain = json.optString("fallback_domain", ""),
                     // has() before reading: an absent key must come back null

@@ -1,5 +1,10 @@
 package com.github.kr328.clash
 
+import com.github.kr328.clash.design.compose.dialog.ExpressiveAlert
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.async
+import com.github.kr328.clash.design.store.ProfileRecency
+import com.github.kr328.clash.design.compose.deck.DeckUpdates
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -11,7 +16,6 @@ import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,9 +36,6 @@ import com.github.kr328.clash.design.compose.component.AddProfileAction
 import com.github.kr328.clash.design.compose.component.UrlQrDialog
 import com.github.kr328.clash.design.compose.screen.MainScreen
 import com.github.kr328.clash.design.compose.screen.SettingsNavTarget
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.update.UpdateChecker
 import com.github.kr328.clash.service.data.ImportedDao
@@ -49,14 +50,18 @@ import com.github.kr328.clash.util.importProfileFromUrl
 import com.github.kr328.clash.util.startClashService
 import com.github.kr328.clash.util.stopClashService
 import com.github.kr328.clash.util.withClash
+import com.github.kr328.clash.util.testGroupLatency
 import com.github.kr328.clash.util.withProfile
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.github.kr328.clash.design.compose.dialog.ExpressiveDialog
 import io.github.g00fy2.quickie.QRResult
-import io.github.g00fy2.quickie.ScanQRCode
+import io.github.g00fy2.quickie.ScanCustomCode
+import com.github.kr328.clash.util.qrScannerConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.github.kr328.clash.design.compose.theme.ProfileCardColours
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.selects.select
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -67,33 +72,34 @@ private fun NotificationPermissionDialog(
     onSkip: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    ExpressiveAlert(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.notification_permission_ask_title)) },
-        text = { Text(stringResource(R.string.notification_permission_ask_text)) },
-        confirmButton = {
-            TextButton(onClick = onAllow) {
-                Text(stringResource(R.string.notification_permission_ask_allow))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onSkip) {
-                Text(stringResource(R.string.notification_permission_ask_later))
-            }
-        },
+        title = stringResource(R.string.notification_permission_ask_title),
+        text = stringResource(R.string.notification_permission_ask_text),
+        confirmLabel = stringResource(R.string.notification_permission_ask_allow),
+        onConfirm = onAllow,
+        dismissLabel = stringResource(R.string.notification_permission_ask_later),
+        onDismiss = onSkip,
     )
+
 }
 
 class MainActivity : BaseActivity() {
     private val isLoadingFlow = MutableStateFlow(true)
     private val runningFlow = MutableStateFlow(false)
+    /** From the tap on the ghost until the tunnel runs, stops or is refused: the button breathes. */
+    private val connectingFlow = MutableStateFlow(false)
     private val hasProfilesFlow = MutableStateFlow(false)
     private val activeProfileFlow = MutableStateFlow<Profile?>(null)
-    private val appTitleFlow = MutableStateFlow("")
-    private val appLogoUrlFlow = MutableStateFlow("")
+    /** The active profile's ↻ turns until its update completes or fails. */
+    private val updatingProfileFlow = MutableStateFlow(false)
+    private val profilesFlow = MutableStateFlow<List<Profile>>(emptyList())
+    private val deckUpdatesFlow = MutableStateFlow(DeckUpdates())
     private val latencyTestingFlow = MutableStateFlow(false)
     private val proxyGroupsFlow = MutableStateFlow<List<Pair<String, ProxyGroup>>>(emptyList())
     private val useDotsFlow = MutableStateFlow(true)
+    /** A tab asked for by the intent (Settings' Profiles tab on a tablet). */
+    private val requestedTabFlow = MutableStateFlow<SettingsNavTarget?>(null)
 
     /**
      * Proxies whose delay is being measured right now, by proxy name.
@@ -115,7 +121,7 @@ class MainActivity : BaseActivity() {
         return data.getQueryParameter("url")?.trim()?.takeIf { it.isNotEmpty() }
     }
 
-    private val scanLauncher = registerForActivityResult(ScanQRCode()) { result ->
+    private val scanLauncher = registerForActivityResult(ScanCustomCode()) { result ->
         lifecycleScope.launch {
             when (result) {
                 is QRResult.QRSuccess -> {
@@ -133,24 +139,26 @@ class MainActivity : BaseActivity() {
     }
 
     override suspend fun main() {
-        appTitleFlow.value = getString(R.string.application_name)
         runningFlow.value = clashRunning
 
         setContent {
             val isLoading by isLoadingFlow.collectAsStateWithLifecycle()
             val running by runningFlow.collectAsStateWithLifecycle()
+            val connecting by connectingFlow.collectAsStateWithLifecycle()
             val hasProfiles by hasProfilesFlow.collectAsStateWithLifecycle()
             val activeProfile by activeProfileFlow.collectAsStateWithLifecycle()
-            val appTitle by appTitleFlow.collectAsStateWithLifecycle()
-            val appLogoUrl by appLogoUrlFlow.collectAsStateWithLifecycle()
+            val updatingProfile by updatingProfileFlow.collectAsStateWithLifecycle()
+            val profiles by profilesFlow.collectAsStateWithLifecycle()
+            val deckUpdates by deckUpdatesFlow.collectAsStateWithLifecycle()
             val latencyTesting by latencyTestingFlow.collectAsStateWithLifecycle()
             val proxyGroups by proxyGroupsFlow.collectAsStateWithLifecycle()
             val useDots by useDotsFlow.collectAsStateWithLifecycle()
             val testingProxies by testingProxiesFlow.collectAsStateWithLifecycle()
             val notificationPrompt by notificationPromptFlow.collectAsStateWithLifecycle()
             val urlQrDialog by urlOpener.dialogState.collectAsStateWithLifecycle()
+            val requestedTab by requestedTabFlow.collectAsStateWithLifecycle()
 
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 if (notificationPrompt) {
                     NotificationPermissionDialog(
                         onAllow = ::allowNotifications,
@@ -168,14 +176,24 @@ class MainActivity : BaseActivity() {
                     )
                 }
                 MainScreen(
-                    expanded = useDrawerNav(),
+                    // The side rail is Android TV's only; tablets and foldables lay out by width.
+                    expanded = TvUtils.isTv(this),
                     isTv = TvUtils.isTv(this),
+                    requestedTab = requestedTab,
+                    onTabShown = { requestedTabFlow.value = null },
                     clashRunning = running,
+                    connecting = connecting,
                     isLoading = isLoading,
                     hasProfiles = hasProfiles,
                     activeProfile = activeProfile,
-                    appTitle = appTitle,
-                    appLogoUrl = appLogoUrl,
+                    updatingProfile = updatingProfile,
+                    profiles = profiles,
+                    deckUpdates = deckUpdates,
+                    onUpdateAll = ::updateAllProfiles,
+                    onEditProfile = ::openProfile,
+                    onUpdateProfileOf = { profile -> launch { withProfile { update(profile.uuid) } } },
+                    onDeleteProfile = { profile -> launch { withProfile { delete(profile.uuid) } } },
+                    onActivateProfile = { profile -> launch { withProfile { setActive(profile) } } },
                     latencyTesting = latencyTesting,
                     proxyGroups = proxyGroups,
                     useDots = useDots,
@@ -196,7 +214,6 @@ class MainActivity : BaseActivity() {
                     onSelectProxy = ::selectProxy,
                     onUrlTest = ::urlTestGroup,
                     onTestProxy = ::testProxy,
-                    onLogoTap = ::onLogoTap,
                 )
             }
         }
@@ -232,8 +249,15 @@ class MainActivity : BaseActivity() {
                     when (it) {
                         Event.ActivityStart,
                         Event.ServiceRecreated,
-                        Event.ClashStop, Event.ClashStart,
+                        Event.ClashStop, Event.ClashStart -> {
+                            connectingFlow.value = false
+                            fetch()
+                        }
                         Event.ProfileLoaded, Event.ProfileChanged -> fetch()
+                        Event.ProfileUpdateCompleted, Event.ProfileUpdateFailed -> {
+                            updatingProfileFlow.value = false
+                            fetch()
+                        }
                         else -> Unit
                     }
                 }
@@ -249,12 +273,27 @@ class MainActivity : BaseActivity() {
     private suspend fun fetch() {
         runningFlow.value = clashRunning
         withProfile {
+            // Only profiles fetched in full: one still being added has none of
+            // its headers yet (its pxa-theme, its logo) and showed in the
+            // deck in the default green until they came.
+            val all = queryAll().filter { it.imported }
+            // A profile just added waits for its card colour (its logo
+            // downloaded), so it does not show green first; the first load
+            // shows everything at once, colours as they come.
+            val shown = profilesFlow.value.map { it.uuid }.toSet()
+            val added = if (shown.isEmpty()) emptyList() else all.filter { it.uuid !in shown }
+            if (added.isNotEmpty()) {
+                withTimeoutOrNull(3_000) {
+                    added.forEach { ProfileCardColours.cardColour(this@MainActivity, it, uiStore.useProfileTheme) }
+                }
+            }
+            // None active with profiles left (one from before deleting picked a
+            // neighbour): the first saved one, not the first-launch screen.
             val active = queryActive()
+                ?: all.firstOrNull()?.also { setActive(it) }?.copy(active = true)
             activeProfileFlow.value = active
-            hasProfilesFlow.value = queryAll().isNotEmpty()
-            appTitleFlow.value = active?.profileTitle?.takeIf { it.isNotEmpty() }
-                ?: getString(R.string.application_name)
-            appLogoUrlFlow.value = active?.profileLogo.orEmpty()
+            hasProfilesFlow.value = all.isNotEmpty()
+            profilesFlow.value = all
         }
         if (clashRunning) {
             fetchProxyGroups()
@@ -306,20 +345,11 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    /** Each node's result as soon as it is in (testGroupLatency). */
     private fun urlTestGroup(group: String) {
         launch {
-            val members = proxyGroupsFlow.value
-                .firstOrNull { it.first == group }
-                ?.second?.proxies?.map { it.name }?.toSet()
-                .orEmpty()
-
-            testingProxiesFlow.value = testingProxiesFlow.value + members
-            try {
-                withClash { healthCheck(group) }
-                fetchProxyGroups()
-            } finally {
-                testingProxiesFlow.value = testingProxiesFlow.value - members
-            }
+            val data = proxyGroupsFlow.value.firstOrNull { it.first == group }?.second
+            testGroupLatency(group, data, testingProxiesFlow) { fetchProxyGroups() }
         }
     }
 
@@ -332,29 +362,6 @@ class MainActivity : BaseActivity() {
                 fetchProxyGroups()
             } finally {
                 testingProxiesFlow.value = testingProxiesFlow.value - name
-            }
-        }
-    }
-
-    private var logoTapCount = 0
-    private var logoTapResetJob: kotlinx.coroutines.Job? = null
-
-    // Easter egg: 15 taps on the logo unlocks the "Always Summer" theme.
-    private fun onLogoTap() {
-        logoTapResetJob?.cancel()
-        logoTapCount++
-        if (logoTapCount >= 15) {
-            logoTapCount = 0
-            uiStore.summerModeUnlocked = true
-            Toast.makeText(
-                this,
-                "🥒 Всегда Лето разблокирован! Проверьте настройки темы",
-                Toast.LENGTH_LONG,
-            ).show()
-        } else {
-            logoTapResetJob = lifecycleScope.launch {
-                kotlinx.coroutines.delay(1000)
-                logoTapCount = 0
             }
         }
     }
@@ -384,6 +391,7 @@ class MainActivity : BaseActivity() {
             toast(R.string.no_profile_selected)
             return
         }
+        connectingFlow.value = true
         val vpnRequest = startClashService()
         try {
             if (vpnRequest != null) {
@@ -391,19 +399,74 @@ class MainActivity : BaseActivity() {
                     ActivityResultContracts.StartActivityForResult(),
                     vpnRequest
                 )
-                if (result.resultCode == RESULT_OK)
+                if (result.resultCode == RESULT_OK) {
                     startClashService()
+                } else {
+                    connectingFlow.value = false
+                }
             }
         } catch (e: Exception) {
+            connectingFlow.value = false
             toast(R.string.unable_to_start_vpn)
         }
+        // Never breathing for good: a start that neither runs nor stops lets go.
+        if (connectingFlow.value) {
+            launch {
+                kotlinx.coroutines.delay(30_000)
+                if (!clashRunning) connectingFlow.value = false
+            }
+        }
+    }
+
+    /**
+     * The deck's ↻: every subscription in turn, local files skipped, from the
+     * bottom up — the active profile first, then the strips nearest it. The
+     * strips show which one is updating and which one failed.
+     */
+    private fun updateAllProfiles() {
+        if (deckUpdatesFlow.value.updating.isNotEmpty()) return
+        launch {
+            val all = withProfile { queryAll() }.filter { it.imported && it.type != Profile.Type.File }
+            val active = all.firstOrNull { it.active }
+            val order = listOfNotNull(active) + ProfileRecency.ordered(this@MainActivity, all.filter { it != active })
+            deckUpdatesFlow.value = DeckUpdates()
+            for (profile in order) {
+                deckUpdatesFlow.value = deckUpdatesFlow.value.copy(updating = setOf(profile.uuid))
+                val result = kotlinx.coroutines.withTimeoutOrNull(90_000) {
+                    kotlinx.coroutines.coroutineScope {
+                        val done = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { profileUpdates.first { it.first == profile.uuid } }
+                        withProfile { update(profile.uuid) }
+                        done.await()
+                    }
+                }
+                val failure = when {
+                    result == null -> getString(R.string.update_error_title)
+                    else -> result.second
+                }
+                val current = deckUpdatesFlow.value
+                deckUpdatesFlow.value = current.copy(
+                    updating = emptySet(),
+                    failures = if (failure != null) current.failures + (profile.uuid to failure) else current.failures,
+                )
+                fetch()
+            }
+        }
+    }
+
+    /** The opened profile's "Edit Profile": the Android profile editor. */
+    private fun openProfile(profile: Profile) {
+        startActivity(PropertiesActivity::class.intent.setUUID(profile.uuid))
     }
 
     private fun updateActiveProfile() {
         launch {
             val active = withProfile { queryActive() }
             if (active != null && active.imported && active.type != Profile.Type.File) {
+                updatingProfileFlow.value = true
                 withProfile { update(active.uuid) }
+                // Never turning for good: the update's result normally stops it.
+                kotlinx.coroutines.delay(60_000)
+                updatingProfileFlow.value = false
             }
         }
     }
@@ -436,7 +499,7 @@ class MainActivity : BaseActivity() {
                 getString(R.string.mode_global_label),
             )
             val checked = modes.indexOf(current).coerceAtLeast(0)
-            val dialog = MaterialAlertDialogBuilder(this@MainActivity)
+            val dialog = ExpressiveDialog.Builder(this@MainActivity)
                 .setTitle(R.string.mode_selector_title)
                 .setSingleChoiceItems(labels, checked) { d, which ->
                     if (cont.isActive) cont.resumeWith(Result.success(modes[which]))
@@ -458,18 +521,11 @@ class MainActivity : BaseActivity() {
             if (firstName != null) {
                 // Simple mode shows that group's nodes inline, so their badges
                 // spin along with the button.
-                val members = proxyGroupsFlow.value
-                    .firstOrNull { it.first == firstName }
-                    ?.second?.proxies?.map { it.name }?.toSet()
-                    .orEmpty()
-
+                val data = proxyGroupsFlow.value.firstOrNull { it.first == firstName }?.second
                 latencyTestingFlow.value = true
-                testingProxiesFlow.value = testingProxiesFlow.value + members
                 try {
-                    withClash { healthCheck(firstName) }
-                    fetchProxyGroups()
+                    testGroupLatency(firstName, data, testingProxiesFlow) { fetchProxyGroups() }
                 } finally {
-                    testingProxiesFlow.value = testingProxiesFlow.value - members
                     latencyTestingFlow.value = false
                 }
             }
@@ -487,7 +543,7 @@ class MainActivity : BaseActivity() {
                     launch { importProfileFromUrl(text) }
                 }
             }
-            AddProfileAction.ScanQr -> scanLauncher.launch(null)
+            AddProfileAction.ScanQr -> scanLauncher.launch(qrScannerConfig)
             AddProfileAction.File -> launch {
                 val uuid = withProfile { create(Profile.Type.File, getString(R.string.new_profile)) }
                 startActivity(PropertiesActivity::class.intent.setUUID(uuid))
@@ -503,6 +559,7 @@ class MainActivity : BaseActivity() {
     private fun navigate(target: SettingsNavTarget) {
         when (target) {
             SettingsNavTarget.Home -> Unit // already home
+            SettingsNavTarget.Servers -> Unit // a tab of Home on Android TV
             SettingsNavTarget.Profiles -> startActivity(ProfilesActivity::class.intent)
             SettingsNavTarget.Settings -> {
                 startActivity(SettingsActivity::class.intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION))
@@ -531,7 +588,7 @@ class MainActivity : BaseActivity() {
     }
 
     private fun showUpdateAvailableDialog(tagName: String, downloadUrl: String) {
-        MaterialAlertDialogBuilder(this)
+        ExpressiveDialog.Builder(this)
             .setTitle(R.string.update_available_title)
             .setMessage(getString(R.string.update_available_message, tagName))
             .setPositiveButton(R.string.update_download) { _, _ ->
@@ -567,7 +624,7 @@ class MainActivity : BaseActivity() {
 
         val message = texts.detail?.let { "${texts.message}\n$it" } ?: texts.message
 
-        val builder = MaterialAlertDialogBuilder(this)
+        val builder = ExpressiveDialog.Builder(this)
             .setTitle(profile.name)
             .setMessage(message)
             .setNegativeButton(R.string.ok, null)
@@ -582,6 +639,7 @@ class MainActivity : BaseActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        readRequestedTab(intent)
         handleSubscriptionAlertIntent(intent)
         val url = extractInstallConfigUrl(intent) ?: return
         lifecycleScope.launch {
@@ -591,6 +649,7 @@ class MainActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) readRequestedTab(intent)
 
         setupShortcuts()
     }
@@ -642,25 +701,21 @@ class MainActivity : BaseActivity() {
         applyDynamicShortcuts(uiStore.hideAppIcon)
     }
 
+    private fun readRequestedTab(intent: Intent?) {
+        val name = intent?.getStringExtra(EXTRA_TAB) ?: return
+        intent.removeExtra(EXTRA_TAB)
+        requestedTabFlow.value = runCatching { SettingsNavTarget.valueOf(name) }.getOrNull()
+    }
+
+    companion object {
+        /** A [SettingsNavTarget]'s name: the tab to show (Profiles from Settings on a tablet). */
+        const val EXTRA_TAB = "tab"
+    }
+
     private fun useDrawerNav(): Boolean {
         if (TvUtils.isTv(this)) return true
         val cfg = resources.configuration
         return cfg.smallestScreenWidthDp >= 600 &&
             cfg.orientation == Configuration.ORIENTATION_LANDSCAPE
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
     }
 }

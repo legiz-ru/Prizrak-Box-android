@@ -18,9 +18,6 @@ import com.github.kr328.clash.design.compose.component.AddProfileAction
 import com.github.kr328.clash.design.compose.component.UrlQrDialog
 import com.github.kr328.clash.design.compose.screen.ProfilesScreen
 import com.github.kr328.clash.design.compose.screen.SettingsNavTarget
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.util.UrlOpener
 import com.github.kr328.clash.util.importProfileFromUrl
@@ -28,9 +25,10 @@ import com.github.kr328.clash.util.sendProfileToTv
 import com.github.kr328.clash.util.startClashService
 import com.github.kr328.clash.util.stopClashService
 import com.github.kr328.clash.util.withProfile
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.github.kr328.clash.design.compose.dialog.ExpressiveDialog
 import io.github.g00fy2.quickie.QRResult
-import io.github.g00fy2.quickie.ScanQRCode
+import io.github.g00fy2.quickie.ScanCustomCode
+import com.github.kr328.clash.util.qrScannerConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -51,7 +49,7 @@ class ProfilesActivity : BaseActivity() {
 
     private val urlOpener by lazy { UrlOpener(this) }
 
-    private val scanLauncher = registerForActivityResult(ScanQRCode()) { result ->
+    private val scanLauncher = registerForActivityResult(ScanCustomCode()) { result ->
         lifecycleScope.launch {
             when (result) {
                 is QRResult.QRSuccess -> {
@@ -85,7 +83,7 @@ class ProfilesActivity : BaseActivity() {
             val running by runningFlow.collectAsStateWithLifecycle()
             val urlQrDialog by urlOpener.dialogState.collectAsStateWithLifecycle()
 
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 urlQrDialog?.let { state ->
                     UrlQrDialog(
                         title = state.title,
@@ -130,7 +128,7 @@ class ProfilesActivity : BaseActivity() {
                             fetch()
                             if (intent.getBooleanExtra(EXTRA_SCAN_QR_ON_START, false)) {
                                 intent.removeExtra(EXTRA_SCAN_QR_ON_START)
-                                scanLauncher.launch(null)
+                                scanLauncher.launch(qrScannerConfig)
                             }
                         }
                         Event.ProfileChanged -> fetch()
@@ -190,7 +188,7 @@ class ProfilesActivity : BaseActivity() {
                     launch { importProfileFromUrl(text) }
                 }
             }
-            AddProfileAction.ScanQr -> scanLauncher.launch(null)
+            AddProfileAction.ScanQr -> scanLauncher.launch(qrScannerConfig)
             AddProfileAction.File -> launch {
                 val uuid = withProfile { create(Profile.Type.File, getString(R.string.new_profile)) }
                 startActivity(PropertiesActivity::class.intent.setUUID(uuid))
@@ -214,10 +212,10 @@ class ProfilesActivity : BaseActivity() {
     }
 
     private fun confirmDelete(profile: Profile) {
-        MaterialAlertDialogBuilder(this)
+        ExpressiveDialog.Builder(this)
             .setTitle(R.string.delete)
             .setMessage(getString(R.string.profile_delete_confirm, profile.name))
-            .setPositiveButton(R.string.delete) { _, _ ->
+            .setDestructiveButton(R.string.delete) { _, _ ->
                 launch { withProfile { delete(profile.uuid) } }
             }
             .setNegativeButton(R.string.cancel, null)
@@ -226,7 +224,7 @@ class ProfilesActivity : BaseActivity() {
 
     private fun showAnnounce(profile: Profile) {
         if (profile.announce.isEmpty()) return
-        MaterialAlertDialogBuilder(this)
+        ExpressiveDialog.Builder(this)
             .setTitle(profile.name)
             .setMessage(profile.announce.replace("\\n", "\n"))
             .setPositiveButton(R.string.ok, null)
@@ -235,6 +233,18 @@ class ProfilesActivity : BaseActivity() {
 
     private fun navigate(target: SettingsNavTarget) {
         when (target) {
+            // Android TV: Home's Servers tab.
+            SettingsNavTarget.Servers -> {
+                startActivity(
+                    MainActivity::class.intent
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        .putExtra(MainActivity.EXTRA_TAB, SettingsNavTarget.Servers.name),
+                )
+                finish()
+                overridePendingTransition(0, 0)
+            }
             SettingsNavTarget.Home -> {
                 startActivity(
                     MainActivity::class.intent
@@ -280,7 +290,7 @@ class ProfilesActivity : BaseActivity() {
     }
 
     private fun showUnsavedTips(profile: Profile) {
-        MaterialAlertDialogBuilder(this)
+        ExpressiveDialog.Builder(this)
             .setMessage(R.string.active_unsaved_tips)
             .setPositiveButton(R.string.edit) { _, _ ->
                 startActivity(PropertiesActivity::class.intent.setUUID(profile.uuid))
@@ -290,7 +300,7 @@ class ProfilesActivity : BaseActivity() {
     }
 
     private fun showAlreadyUpdatingDialog() {
-        MaterialAlertDialogBuilder(this)
+        ExpressiveDialog.Builder(this)
             .setTitle(R.string.profile_updating_title)
             .setMessage(R.string.profile_updating_message)
             .setPositiveButton(android.R.string.ok, null)
@@ -315,7 +325,7 @@ class ProfilesActivity : BaseActivity() {
             val name = withProfile { queryByUUID(uuid)?.name }
             val friendlyReason = com.github.kr328.clash.service.ProfileProcessor
                 .describeFetchFailureReason(this@ProfilesActivity, reason)
-            MaterialAlertDialogBuilder(this@ProfilesActivity)
+            ExpressiveDialog.Builder(this@ProfilesActivity)
                 .setMessage(getString(R.string.toast_profile_updated_failed, name, friendlyReason))
                 .setPositiveButton(R.string.edit) { _, _ ->
                     startActivity(PropertiesActivity::class.intent.setUUID(uuid))
@@ -330,20 +340,5 @@ class ProfilesActivity : BaseActivity() {
         val cfg = resources.configuration
         return cfg.smallestScreenWidthDp >= 600 &&
             cfg.orientation == Configuration.ORIENTATION_LANDSCAPE
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
     }
 }

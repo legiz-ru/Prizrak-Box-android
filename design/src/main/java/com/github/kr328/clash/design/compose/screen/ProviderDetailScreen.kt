@@ -1,5 +1,9 @@
 package com.github.kr328.clash.design.compose.screen
 
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +45,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.BusyIndicator
+import com.github.kr328.clash.design.compose.component.EmptyState
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.PreferenceCard
+import com.github.kr328.clash.design.compose.component.PreferenceList
+import com.github.kr328.clash.design.compose.component.SearchField
+import com.github.kr328.clash.design.compose.component.listPadding
 
 /**
  * Single provider's rule list (1:1 with ProviderDetailDesign, restyled to
@@ -69,80 +80,67 @@ fun ProviderDetailScreen(
 
     LaunchedEffect(current, matches) {
         if (matches.isNotEmpty()) {
-            listState.animateScrollToItem(matches[current.coerceIn(0, matches.size - 1)])
+            // The list opens with a spacer: rule i is item i + 1.
+            listState.animateScrollToItem(matches[current.coerceIn(0, matches.size - 1)] + 1)
         }
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(title) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    actions = {
-                        if (updateEnabled) {
-                            if (updating) {
-                                CircularProgressIndicator(
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier
-                                        .padding(horizontal = 12.dp)
-                                        .size(24.dp),
-                                )
-                            } else {
-                                IconButton(onClick = onUpdate) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_baseline_sync),
-                                        contentDescription = stringResource(R.string.update),
-                                    )
-                                }
-                            }
-                        }
-                    },
-                )
-            },
-        ) { inner ->
-            Column(modifier = Modifier.padding(inner).fillMaxSize()) {
-                if (searchEnabled && !loading) {
-                    SearchRow(
-                        query = query,
-                        onQueryChange = { query = it },
-                        counter = when {
-                            query.isBlank() -> ""
-                            matches.isEmpty() -> "0"
-                            else -> "${current.coerceIn(0, matches.size - 1) + 1}/${matches.size}"
-                        },
-                        navEnabled = matches.isNotEmpty(),
-                        onPrev = { if (matches.isNotEmpty()) current = (current - 1 + matches.size) % matches.size },
-                        onNext = { if (matches.isNotEmpty()) current = (current + 1) % matches.size },
-                    )
-                }
-
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    when {
-                        loading -> CircularProgressIndicator(strokeWidth = 2.dp)
-                        rules.isEmpty() -> Text(
-                            text = stringResource(R.string.empty),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    ExpressiveScaffold(
+        title = title,
+        onBack = onBack,
+        actions = {
+            if (updateEnabled) {
+                if (updating) {
+                    BusyIndicator(modifier = Modifier.padding(horizontal = 10.dp))
+                } else {
+                    IconButton(onClick = onUpdate) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_baseline_sync),
+                            contentDescription = stringResource(R.string.update),
                         )
-                        else -> {
-                            val currentPos = if (matches.isNotEmpty()) matches[current.coerceIn(0, matches.size - 1)] else -1
-                            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                                itemsIndexed(rules) { index, rule ->
-                                    RuleEntryRow(
-                                        text = rule,
-                                        query = query,
-                                        isCurrent = index == currentPos,
-                                    )
-                                }
-                            }
+                    }
+                }
+            }
+        },
+    ) { inner ->
+        when {
+            loading -> Box(Modifier.fillMaxSize().padding(inner), contentAlignment = Alignment.Center) {
+                BusyIndicator(size = 48.dp)
+            }
+            rules.isEmpty() -> EmptyState(stringResource(R.string.empty), inner)
+            else -> {
+                val currentPos = if (matches.isNotEmpty()) matches[current.coerceIn(0, matches.size - 1)] else -1
+                val direction = LocalLayoutDirection.current
+                Column(Modifier.fillMaxSize().padding(top = inner.calculateTopPadding())) {
+                    if (searchEnabled) {
+                        SearchRow(
+                            query = query,
+                            onQueryChange = { query = it },
+                            counter = when {
+                                query.isBlank() -> ""
+                                matches.isEmpty() -> "0"
+                                else -> "${current.coerceIn(0, matches.size - 1) + 1}/${matches.size}"
+                            },
+                            navEnabled = matches.isNotEmpty(),
+                            onPrev = { if (matches.isNotEmpty()) current = (current - 1 + matches.size) % matches.size },
+                            onNext = { if (matches.isNotEmpty()) current = (current + 1) % matches.size },
+                        )
+                    }
+                    PreferenceList(
+                        modifier = Modifier.weight(1f),
+                        state = listState,
+                        contentPadding = PaddingValues(
+                            start = inner.calculateStartPadding(direction) + 16.dp,
+                            end = inner.calculateEndPadding(direction) + 16.dp,
+                            bottom = inner.calculateBottomPadding(),
+                        ),
+                    ) {
+                        itemsIndexed(rules) { index, rule ->
+                            RuleEntryRow(
+                                text = rule,
+                                query = query,
+                                isCurrent = index == currentPos,
+                            )
                         }
                     }
                 }
@@ -160,26 +158,15 @@ private fun SearchRow(
     navEnabled: Boolean,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            singleLine = true,
-            leadingIcon = {
-                Icon(
-                    painter = painterResource(R.drawable.ic_baseline_search),
-                    contentDescription = null,
-                )
-            },
-            placeholder = { Text(stringResource(R.string.search)) },
-            modifier = Modifier.weight(1f),
-        )
+        SearchField(query = query, onQueryChange = onQueryChange, modifier = Modifier.weight(1f))
         if (counter.isNotEmpty()) {
             Text(
                 text = counter,
@@ -208,15 +195,17 @@ private fun SearchRow(
 private fun RuleEntryRow(text: String, query: String, isCurrent: Boolean) {
     val scheme = MaterialTheme.colorScheme
     val highlighted = remember(text, query) { highlight(text, query, scheme.primary) }
-    Text(
-        text = highlighted,
-        style = MaterialTheme.typography.bodyMedium,
-        color = scheme.onSurface,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(if (isCurrent) scheme.secondaryContainer else Color.Transparent)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-    )
+    PreferenceCard {
+        Text(
+            text = highlighted,
+            style = MaterialTheme.typography.bodyMedium,
+            color = scheme.onSurface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(if (isCurrent) scheme.primaryContainer else Color.Transparent)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+    }
 }
 
 private fun highlight(text: String, query: String, color: Color): AnnotatedString =

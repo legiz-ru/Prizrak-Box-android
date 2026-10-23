@@ -429,6 +429,17 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeSetAgeSecretKeys(JNIEnv *en
     setAgeSecretKeys(_keys);
 }
 
+JNIEXPORT void JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeSetZashboardController(JNIEnv *env, jobject thiz,
+                                                                            jstring addr, jstring secret) {
+    TRACE_METHOD();
+
+    scoped_string _addr = get_string(addr);
+    scoped_string _secret = get_string(secret);
+
+    setZashboardController(_addr, _secret);
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeDecryptConfig(JNIEnv *env, jobject thiz,
                                                                    jstring content, jstring keys) {

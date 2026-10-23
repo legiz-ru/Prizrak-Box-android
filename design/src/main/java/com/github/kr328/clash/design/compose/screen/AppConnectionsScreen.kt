@@ -1,5 +1,7 @@
 package com.github.kr328.clash.design.compose.screen
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.SegmentedListItem
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -36,6 +38,13 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.github.kr328.clash.core.model.Connection
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.EmptyState
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.LocalSegment
+import com.github.kr328.clash.design.compose.component.PreferenceList
+import com.github.kr328.clash.design.compose.component.listPadding
+import com.github.kr328.clash.design.compose.component.segmentColors
+import com.github.kr328.clash.design.compose.component.segmentShapes
 import com.github.kr328.clash.design.util.toBytesString
 import java.time.Duration
 import java.time.Instant
@@ -60,63 +69,31 @@ fun AppConnectionsScreen(
     val iconPainter = remember(appIcon) {
         appIcon?.let { BitmapPainter(it.toBitmap(96, 96).asImageBitmap()) }
     }
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (iconPainter != null) {
-                                Image(
-                                    painter = iconPainter,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .padding(end = 12.dp)
-                                        .size(28.dp),
-                                )
-                            }
-                            Text(appName, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                )
-            },
-        ) { inner ->
-            if (connections.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(inner),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    ExpressiveScaffold(
+        title = appName,
+        onBack = onBack,
+        titleIcon = iconPainter?.let {
+            { Image(painter = it, contentDescription = null, modifier = Modifier.size(36.dp)) }
+        },
+    ) { inner ->
+        if (connections.isEmpty()) {
+            EmptyState(stringResource(R.string.empty), inner)
+        } else {
+            PreferenceList(modifier = Modifier.fillMaxSize(), contentPadding = listPadding(inner)) {
+                items(connections, key = { it.id }) { conn ->
+                    ConnectionRow(
+                        connection = conn,
+                        closable = closable,
+                        onClick = { onConnectionClick(conn) },
+                        onClose = { onClose(conn) },
                     )
-                }
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxSize().padding(inner)) {
-                    items(items = connections, key = { it.id }) { conn ->
-                        ConnectionRow(
-                            connection = conn,
-                            closable = closable,
-                            onClick = { onConnectionClick(conn) },
-                            onClose = { onClose(conn) },
-                        )
-                    }
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ConnectionRow(
     connection: Connection,
@@ -135,8 +112,11 @@ private fun ConnectionRow(
     val traffic = remember(connection) {
         "↑ ${connection.upload.toBytesString()}  ↓ ${connection.download.toBytesString()}    ${formatDuration(connection.start)}"
     }
-    ListItem(
-        headlineContent = { Text(host, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = segmentShapes(LocalSegment.current),
+        colors = segmentColors(),
+        modifier = Modifier.fillMaxWidth(),
         supportingContent = {
             Column {
                 Text(typeChain, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -153,11 +133,9 @@ private fun ConnectionRow(
                 }
             }
         } else null,
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    )
+    ) {
+        Text(host, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
 
 private fun formatDuration(startIso: String): String {

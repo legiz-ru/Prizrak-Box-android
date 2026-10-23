@@ -1,23 +1,21 @@
 package com.github.kr328.clash
 
-import android.content.res.Configuration
+import com.github.kr328.clash.BaseActivity.Event
+import com.github.kr328.clash.remote.Remote
+import kotlinx.coroutines.flow.SharedFlow
+import androidx.compose.runtime.Composable
 import android.os.Build
-import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.github.kr328.clash.design.compose.screen.NotificationPermissionStatus
 import com.github.kr328.clash.design.compose.screen.NotificationSettingsScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.service.ProfileWorker
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.service.subscription.SUBSCRIPTION_ALERT_CHANNEL
 import com.github.kr328.clash.util.notificationPermissionStatus
 import com.github.kr328.clash.util.openSystemNotificationSettings
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
@@ -25,88 +23,80 @@ import kotlinx.coroutines.launch
  * itself, then one switch per notification kind — including two the panel
  * drives (expiry/traffic thresholds), see SubscriptionAlertReporter.
  */
-class NotificationSettingsActivity : BaseActivity() {
-    private val srvStore by lazy { ServiceStore(this) }
+class NotificationSettingsActivity : SectionActivity() {
+    override fun createSection() = NotificationSection(this, ::finish)
+}
 
-    private val permissionStatusFlow =
-        MutableStateFlow<NotificationPermissionStatus>(NotificationPermissionStatus.Granted)
-    private val dynamicNotificationFlow = MutableStateFlow(false)
-    private val notifySubscriptionProgressFlow = MutableStateFlow(true)
-    private val notifySubscriptionErrorsFlow = MutableStateFlow(true)
-    private val notifySubscriptionAlertsFlow = MutableStateFlow(true)
+class NotificationSection(activity: BaseActivity, close: () -> Unit) : SettingsSection(activity, close) {
+    private val srvStore = ServiceStore(activity)
 
-    override suspend fun main() {
+    private val permissionStatusFlow = MutableStateFlow(activity.notificationPermissionStatus())
+    private val dynamicNotificationFlow = MutableStateFlow(srvStore.dynamicNotification)
+    private val notifySubscriptionProgressFlow = MutableStateFlow(srvStore.notifySubscriptionProgress)
+    private val notifySubscriptionErrorsFlow = MutableStateFlow(srvStore.notifySubscriptionErrors)
+    private val notifySubscriptionAlertsFlow = MutableStateFlow(srvStore.notifySubscriptionAlerts)
+
+    override suspend fun run(events: SharedFlow<Event>) {
         refreshPermissionStatus()
-        dynamicNotificationFlow.value = srvStore.dynamicNotification
-        notifySubscriptionProgressFlow.value = srvStore.notifySubscriptionProgress
-        notifySubscriptionErrorsFlow.value = srvStore.notifySubscriptionErrors
-        notifySubscriptionAlertsFlow.value = srvStore.notifySubscriptionAlerts
-
-        setContent {
-            val permissionStatus by permissionStatusFlow.collectAsStateWithLifecycle()
-            val dynamicNotification by dynamicNotificationFlow.collectAsStateWithLifecycle()
-            val notifySubscriptionProgress by notifySubscriptionProgressFlow.collectAsStateWithLifecycle()
-            val notifySubscriptionErrors by notifySubscriptionErrorsFlow.collectAsStateWithLifecycle()
-            val notifySubscriptionAlerts by notifySubscriptionAlertsFlow.collectAsStateWithLifecycle()
-
-            ClashTheme(variant = currentThemeVariant()) {
-                NotificationSettingsScreen(
-                    onBack = { finish() },
-                    permissionStatus = permissionStatus,
-                    onRequestPermission = { launch { requestPermission() } },
-                    onOpenSystemNotificationSettings = { openSystemNotificationSettings() },
-                    dynamicNotification = dynamicNotification,
-                    dynamicNotificationEnabled = !clashRunning,
-                    onDynamicNotification = {
-                        srvStore.dynamicNotification = it
-                        dynamicNotificationFlow.value = it
-                    },
-                    notifySubscriptionProgress = notifySubscriptionProgress,
-                    onNotifySubscriptionProgress = {
-                        srvStore.notifySubscriptionProgress = it
-                        notifySubscriptionProgressFlow.value = it
-                    },
-                    onOpenProgressChannelSettings = {
-                        openSystemNotificationSettings(ProfileWorker.STATUS_CHANNEL)
-                    },
-                    notifySubscriptionErrors = notifySubscriptionErrors,
-                    onNotifySubscriptionErrors = {
-                        srvStore.notifySubscriptionErrors = it
-                        notifySubscriptionErrorsFlow.value = it
-                    },
-                    onOpenErrorsChannelSettings = {
-                        openSystemNotificationSettings(ProfileWorker.RESULT_CHANNEL)
-                    },
-                    onOpenUpdaterServiceChannelSettings = {
-                        openSystemNotificationSettings(ProfileWorker.SERVICE_CHANNEL)
-                    },
-                    notifySubscriptionAlerts = notifySubscriptionAlerts,
-                    onNotifySubscriptionAlerts = {
-                        srvStore.notifySubscriptionAlerts = it
-                        notifySubscriptionAlertsFlow.value = it
-                    },
-                    onOpenSubscriptionAlertsChannelSettings = {
-                        openSystemNotificationSettings(SUBSCRIPTION_ALERT_CHANNEL)
-                    },
-                )
-            }
+        events.collect {
+            // Covers coming back from the system permission/channel settings screens.
+            if (it == Event.ActivityStart) refreshPermissionStatus()
         }
+    }
 
-        while (isActive) {
-            when (events.receive()) {
-                Event.ClashStart, Event.ClashStop -> Unit
-                // Covers coming back from the system permission/channel settings
-                // screens this activity itself launches.
-                Event.ActivityStart -> refreshPermissionStatus()
-                else -> Unit
-            }
-        }
+    @Composable
+    override fun Content(onBack: (() -> Unit)?) {
+        val permissionStatus by permissionStatusFlow.collectAsStateWithLifecycle()
+        val dynamicNotification by dynamicNotificationFlow.collectAsStateWithLifecycle()
+        val notifySubscriptionProgress by notifySubscriptionProgressFlow.collectAsStateWithLifecycle()
+        val notifySubscriptionErrors by notifySubscriptionErrorsFlow.collectAsStateWithLifecycle()
+        val notifySubscriptionAlerts by notifySubscriptionAlertsFlow.collectAsStateWithLifecycle()
+
+        NotificationSettingsScreen(
+            onBack = onBack,
+            permissionStatus = permissionStatus,
+            onRequestPermission = { activity.launch { requestPermission() } },
+            onOpenSystemNotificationSettings = { activity.openSystemNotificationSettings() },
+            dynamicNotification = dynamicNotification,
+            dynamicNotificationEnabled = !Remote.broadcasts.clashRunning,
+            onDynamicNotification = {
+                srvStore.dynamicNotification = it
+                dynamicNotificationFlow.value = it
+            },
+            notifySubscriptionProgress = notifySubscriptionProgress,
+            onNotifySubscriptionProgress = {
+                srvStore.notifySubscriptionProgress = it
+                notifySubscriptionProgressFlow.value = it
+            },
+            onOpenProgressChannelSettings = {
+                activity.openSystemNotificationSettings(ProfileWorker.STATUS_CHANNEL)
+            },
+            notifySubscriptionErrors = notifySubscriptionErrors,
+            onNotifySubscriptionErrors = {
+                srvStore.notifySubscriptionErrors = it
+                notifySubscriptionErrorsFlow.value = it
+            },
+            onOpenErrorsChannelSettings = {
+                activity.openSystemNotificationSettings(ProfileWorker.RESULT_CHANNEL)
+            },
+            onOpenUpdaterServiceChannelSettings = {
+                activity.openSystemNotificationSettings(ProfileWorker.SERVICE_CHANNEL)
+            },
+            notifySubscriptionAlerts = notifySubscriptionAlerts,
+            onNotifySubscriptionAlerts = {
+                srvStore.notifySubscriptionAlerts = it
+                notifySubscriptionAlertsFlow.value = it
+            },
+            onOpenSubscriptionAlertsChannelSettings = {
+                activity.openSystemNotificationSettings(SUBSCRIPTION_ALERT_CHANNEL)
+            },
+        )
     }
 
     private suspend fun requestPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
-                startActivityForResult(
+                activity.startActivityForResult(
                     RequestPermission(),
                     android.Manifest.permission.POST_NOTIFICATIONS,
                 )
@@ -115,27 +105,12 @@ class NotificationSettingsActivity : BaseActivity() {
             }
         }
 
-        uiStore.notificationsAsked = true
+        activity.uiStore.notificationsAsked = true
 
         refreshPermissionStatus()
     }
 
     private fun refreshPermissionStatus() {
-        permissionStatusFlow.value = notificationPermissionStatus()
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
+        permissionStatusFlow.value = activity.notificationPermissionStatus()
     }
 }

@@ -6,20 +6,19 @@ import android.content.ClipboardManager
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.core.content.getSystemService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.github.kr328.clash.design.compose.screen.AccessControlScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
 import com.github.kr328.clash.design.model.AppInfo
 import com.github.kr328.clash.design.model.AppInfoSort
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.design.util.toAppInfo
 import com.github.kr328.clash.service.model.AccessControlMode
 import com.github.kr328.clash.service.store.ServiceStore
+import com.github.kr328.clash.service.util.importedDir
+import com.github.kr328.clash.service.util.parseTunPackageLists
+import com.github.kr328.clash.core.Clash
 import com.github.kr328.clash.util.startClashService
 import com.github.kr328.clash.util.stopClashService
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +38,9 @@ class AccessControlActivity : BaseActivity() {
     private val selectedFlow = retainedStateFlow<Set<String>>("access_control_selected") { emptySet() }
     private val modeFlow = retainedStateFlow("access_control_mode") { AccessControlMode.AcceptAll }
     private val selectedSeeded = retainedValue("access_control_seeded") { booleanArrayOf(false) }
+
+    /** The active profile's own `tun.include-package` and `tun.exclude-package`, as the TUN applies them. */
+    private val subscriptionFlow = MutableStateFlow<Pair<Set<String>, Set<String>>>(emptySet<String>() to emptySet())
 
     private val sortFlow = MutableStateFlow(AppInfoSort.Label)
     private val reverseFlow = MutableStateFlow(false)
@@ -83,13 +85,14 @@ class AccessControlActivity : BaseActivity() {
         }
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val apps by appsFlow.collectAsStateWithLifecycle()
                 val selected by selectedFlow.collectAsStateWithLifecycle()
                 val mode by modeFlow.collectAsStateWithLifecycle()
                 val sort by sortFlow.collectAsStateWithLifecycle()
                 val reverse by reverseFlow.collectAsStateWithLifecycle()
                 val systemApps by systemAppsFlow.collectAsStateWithLifecycle()
+                val subscription by subscriptionFlow.collectAsStateWithLifecycle()
                 AccessControlScreen(
                     apps = apps,
                     selected = selected,
@@ -108,10 +111,13 @@ class AccessControlActivity : BaseActivity() {
                     onSetSort = ::setSort,
                     onSetReverse = ::setReverse,
                     onSetSystemApps = ::setSystemApps,
+                    subscriptionInclude = subscription.first,
+                    subscriptionExclude = subscription.second,
                 )
             }
         }
 
+        subscriptionFlow.value = withContext(Dispatchers.IO) { subscriptionLists(service) }
         appsFlow.value = loadApps(selectedFlow.value)
 
         while (isActive) {
@@ -181,7 +187,11 @@ class AccessControlActivity : BaseActivity() {
             val sort = uiStore.accessControlSort
             val systemApp = uiStore.accessControlSystemApp
 
-            val base = compareByDescending<AppInfo> { it.packageName in selected }
+            // The ticked and the subscription's own first.
+            val (include, exclude) = subscriptionFlow.value
+            val base = compareByDescending<AppInfo> {
+                it.packageName in selected || it.packageName in include || it.packageName in exclude
+            }
             val comparator = if (reverse) base.thenDescending(sort) else base.then(sort)
 
             val pm = packageManager
@@ -207,23 +217,24 @@ class AccessControlActivity : BaseActivity() {
                 .toList()
         }
 
+    /**
+     * The active profile's `tun.*-package` lists, read as TunService reads
+     * them (an age-encrypted config is decrypted in memory only).
+     */
+    private fun subscriptionLists(service: ServiceStore): Pair<Set<String>, Set<String>> {
+        val uuid = service.activeProfile ?: return emptySet<String>() to emptySet()
+        val dir = importedDir.resolve(uuid.toString())
+        val config = dir.resolve("config.yaml")
+        if (!config.exists()) return emptySet<String>() to emptySet()
+        return runCatching {
+            val keyFile = dir.resolve("age-secret-key.txt")
+            val key = if (keyFile.exists()) keyFile.readText() else ""
+            parseTunPackageLists(Clash.decryptConfig(config.readText(), key))
+        }.getOrElse { emptySet<String>() to emptySet() }
+    }
+
     private val PackageInfo.isSystemApp: Boolean
         get() {
             return applicationInfo?.flags?.and(ApplicationInfo.FLAG_SYSTEM) != 0
         }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
-    }
 }

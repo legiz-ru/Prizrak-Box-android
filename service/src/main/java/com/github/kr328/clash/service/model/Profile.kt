@@ -42,6 +42,8 @@ data class Profile(
     val connsViewMp: Boolean = false,
     val rpMp: Boolean = false,
     val simpleMode: Boolean = false,
+    /** The raw `pxa-theme` header of the last fetch, "" without one; read through [theme]. */
+    val pxaTheme: String = "",
     val ageSecretKey: String = "",
     /**
      * How far ahead the panel's clock is of the device's, in milliseconds

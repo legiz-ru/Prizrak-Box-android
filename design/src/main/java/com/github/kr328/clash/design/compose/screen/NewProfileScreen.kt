@@ -30,6 +30,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.PreferenceList
+import com.github.kr328.clash.design.compose.component.PreferenceRow
+import com.github.kr328.clash.design.compose.component.listPadding
 import com.github.kr328.clash.design.model.ProfileProvider
 
 /**
@@ -45,34 +49,14 @@ fun NewProfileScreen(
     onSelect: (ProfileProvider) -> Unit,
     onDetail: (ProfileProvider) -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.new_profile)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                                contentDescription = null,
-                            )
-                        }
-                    },
+    ExpressiveScaffold(title = stringResource(R.string.new_profile), onBack = onBack) { inner ->
+        PreferenceList(modifier = Modifier.fillMaxSize(), contentPadding = listPadding(inner)) {
+            items(providers) { provider ->
+                ProfileProviderRow(
+                    provider = provider,
+                    onClick = { onSelect(provider) },
+                    onLongClick = { onDetail(provider) },
                 )
-            },
-        ) { inner ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(inner),
-            ) {
-                items(items = providers) { provider ->
-                    ProfileProviderRow(
-                        provider = provider,
-                        onClick = { onSelect(provider) },
-                        onLongClick = { onDetail(provider) },
-                    )
-                }
             }
         }
     }
@@ -88,21 +72,13 @@ private fun ProfileProviderRow(
     val painter = remember(provider) {
         provider.icon?.let { BitmapPainter(it.toBitmap(96, 96).asImageBitmap()) }
     }
-    ListItem(
-        headlineContent = { Text(provider.name) },
-        supportingContent = { Text(provider.summary) },
-        leadingContent = {
-            if (painter != null) {
-                Image(
-                    painter = painter,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                )
-            }
+    PreferenceRow(
+        title = provider.name,
+        summary = provider.summary,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        leading = painter?.let {
+            { Image(painter = it, contentDescription = null, modifier = Modifier.size(40.dp)) }
         },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     )
 }

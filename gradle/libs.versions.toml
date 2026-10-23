@@ -1,13 +1,13 @@
 [versions]
-agp = "8.13.2"
-r8 = "9.2.25"
+agp = "9.4.1"
+r8 = "9.5.28"
 kotlin = "2.4.10"
-ksp = "2.3.11"
+ksp = "2.3.12"
 golang = "1.0.4"
 coroutine = "1.11.0"
-coreKtx = "1.16.0"
-activity = "1.10.1"
-fragment = "1.9.0"
+coreKtx = "1.19.1"
+activity = "1.13.0"
+fragment = "1.9.1"
 appcompat = "1.8.0"
 coordinator = "1.3.0"
 recyclerview = "1.2.1"
@@ -15,14 +15,19 @@ viewpager = "1.0.0"
 material = "1.14.0"
 serialization = "1.11.0"
 kaidl = "1.15"
-room = "2.8.4"
+room = "2.8.5"
 multiprocess = "1.0.0"
 quickie = "1.11.0"
-androidx-activity-ktx = "1.10.1"
-composeBom = "2026.06.01"
-activityCompose = "1.10.1"
-lifecycleCompose = "2.10.0"
-navigationCompose = "2.9.8"
+androidx-activity-ktx = "1.13.0"
+composeBom = "2026.09.00"
+# Material 3 Expressive (segmented lists, loading indicator, button groups, flexible app bars)
+# lives in 1.5; the BOM still pins 1.4. 1.5 needs compileSdk 37 (AGP 9.1+) and minSdk 24.
+composeMaterial3 = "1.5.0-beta02"
+# Folds, hinges and Activity Embedding for tablets and foldables.
+androidxWindow = "1.5.1"
+activityCompose = "1.13.0"
+lifecycleCompose = "2.11.0"
+navigationCompose = "2.10.2"
 
 [libraries]
 build-r8 = { module = "com.android.tools:r8", version.ref = "r8" }
@@ -59,7 +64,8 @@ androidx-compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 androidx-compose-foundation = { module = "androidx.compose.foundation:foundation" }
-androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "composeMaterial3" }
+androidx-window = { module = "androidx.window:window", version.ref = "androidxWindow" }
 androidx-compose-material3-window-size = { module = "androidx.compose.material3:material3-window-size-class" }
 androidx-compose-material3-adaptive-navigation-suite = { module = "androidx.compose.material3:material3-adaptive-navigation-suite" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }

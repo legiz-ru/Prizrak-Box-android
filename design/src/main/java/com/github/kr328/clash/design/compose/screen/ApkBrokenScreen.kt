@@ -22,6 +22,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.PreferenceScaffold
+import com.github.kr328.clash.design.compose.component.PreferenceRow
 
 /**
  * Shown when the bundled native libraries are missing/broken (1:1 with
@@ -34,44 +36,22 @@ fun ApkBrokenScreen(
     onBack: () -> Unit,
     onOpenReleases: () -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.application_broken)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                )
-            },
-        ) { inner ->
-            Column(modifier = Modifier.fillMaxSize().padding(inner)) {
-                Text(
-                    text = stringResource(R.string.application_broken_tips),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-                )
-                Text(
-                    text = stringResource(R.string.reinstall),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                )
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.github_releases)) },
-                    supportingContent = { Text(stringResource(R.string.meta_github_url)) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onOpenReleases),
-                )
-            }
+    PreferenceScaffold(title = stringResource(R.string.application_broken), onBack = onBack) {
+        free("tips") {
+            Text(
+                text = stringResource(R.string.application_broken_tips),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+            )
+        }
+        category(R.string.reinstall)
+        item {
+            PreferenceRow(
+                title = stringResource(R.string.github_releases),
+                summary = stringResource(R.string.meta_github_url),
+                onClick = onOpenReleases,
+            )
         }
     }
 }

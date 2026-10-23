@@ -1,5 +1,7 @@
 package com.github.kr328.clash.design.compose.component
 
+import androidx.compose.material3.Surface
+import androidx.compose.material3.FilledTonalIconButton
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.clickable
@@ -52,7 +54,11 @@ fun ConnectionDetailSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
         val context = LocalContext.current
         val meta = connection.metadata
 
@@ -92,10 +98,10 @@ fun ConnectionDetailSheet(
             ) {
                 Text(
                     text = header,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = {
+                FilledTonalIconButton(onClick = {
                     val json = runCatching {
                         PrettyJson.encodeToString(Connection.serializer(), connection)
                     }.getOrElse { connection.toString() }
@@ -191,14 +197,15 @@ fun ConnectionDetailSheet(
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 2.dp),
-    )
-    Column(modifier = Modifier.padding(bottom = 10.dp)) {
-        content()
+    SettingsCategory(title)
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceBright,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+            content()
+        }
     }
 }
 
@@ -208,18 +215,18 @@ private fun DetailRow(label: String, value: String, onClick: (() -> Unit)? = nul
     val base = Modifier
         .fillMaxWidth()
         .let { if (onClick != null) it.clickable(onClick = onClick) else it }
-        .padding(vertical = 2.dp)
+        .padding(horizontal = 16.dp, vertical = 6.dp)
     Row(modifier = base) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(120.dp),
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (onClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
     }

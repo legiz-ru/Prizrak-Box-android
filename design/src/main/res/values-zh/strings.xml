@@ -58,7 +58,7 @@
     <string name="profiles">配置</string>
     <string name="properties">参数</string>
     <string name="proxy">代理</string>
-    <string name="recently">近期</string>
+    <string name="recently">刚刚</string>
     <string name="route_system_traffic">自动路由系统流量</string>
     <string name="routing_via_vpn_service">通过 VpnService 自动路由所有系统流量</string>
     <string name="rule_mode">规则模式</string>
@@ -307,9 +307,217 @@
     <string name="open_channel_settings">该通知的声音与振动</string>
     <string name="notification_permission_ask_title">是否显示通知？</string>
     <string name="notification_permission_ask_later">暂不</string>
-    <string name="notification_permission_ask_text">应用需要通知权限，才能显示隧道状态和订阅提醒。</string>
+    <string name="notification_permission_ask_text">应用需要通知权限，以显示隧道状态，以及订阅即将到期或流量即将用尽的提醒。</string>
     <string name="notification_permission_ask_allow">允许</string>
     <string name="notification_permission_blocked">通知已在系统设置中被阻止 —— 在修复之前，以下内容都不会显示。</string>
     <string name="notification_open_settings">打开设置</string>
     <string name="notification_permission_blocked_short">已在系统设置中被阻止</string>
+
+    <!-- Settings → Visual (as on iOS) -->
+    <string name="visual">界面</string>
+    <string name="visual_summary">主题、强调色、主机状态</string>
+    <string name="visual_theme">主题</string>
+    <string name="theme_auto">自动</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_light">浅色</string>
+    <string name="accent_color">强调色</string>
+    <string name="accent_profile">跟随配置</string>
+    <string name="accent_green">绿色</string>
+    <string name="accent_indigo">靛蓝</string>
+    <string name="accent_emerald">翡翠绿</string>
+    <string name="accent_red">红色</string>
+    <string name="accent_amber">琥珀色</string>
+    <string name="accent_blue">蓝色</string>
+    <string name="accent_personalisation">自定义</string>
+    <string name="accent_palette">调色板</string>
+    <string name="accent_grid">网格</string>
+    <string name="accent_spectrum">光谱</string>
+    <string name="accent_examples">示例</string>
+    <string name="accent_saved_hint">保存后该颜色才会成为强调色。</string>
+    <string name="accent_hex_hint">6 个字符：数字 0–9 和字母 A–F</string>
+    <string name="accent_locked">强调色由配置“%1$s”设置。关闭配置主题后将恢复下方的选择。</string>
+    <string name="profile_theme">配置主题</string>
+    <string name="profile_theme_footer">关闭后恢复您自己的设置，它们不会丢失。</string>
+    <string name="profile_theme_leaves">“%1$s”将外观交给您。</string>
+    <string name="profile_theme_sets">“%1$s”设置：%2$s</string>
+    <string name="profile_theme_part_accent">强调色</string>
+    <string name="profile_theme_part_card">卡片</string>
+    <string name="profile_theme_part_theme">主题</string>
+    <string name="profile_theme_part_background">背景</string>
+    <string name="set_by_profile">由配置决定</string>
+    <string name="from_profile">来自配置</string>
+
+    <!-- Settings → Visual → Home Background (as on iOS) -->
+    <string name="home_background">主页背景</string>
+    <string name="bg_clean">纯净</string>
+    <string name="bg_big_ghost">大幽灵</string>
+    <string name="bg_dot_grid">点阵</string>
+    <string name="bg_hem">幽灵衣摆</string>
+    <string name="bg_signal">信号</string>
+    <string name="bg_ghost_pattern">幽灵图案</string>
+    <string name="bg_topography">等高线</string>
+    <string name="bg_cucumber">小黄瓜</string>
+    <string name="bg_mushroomia">蘑菇国</string>
+    <string name="bg_clean_detail">系统背景，卡片后面没有任何内容。</string>
+    <string name="bg_big_ghost_detail">卡片后面有一个巨大的幽灵；连接时会漂浮。</string>
+    <string name="bg_dot_grid_detail">安静的点阵；连接时有光扫过。</string>
+    <string name="bg_hem_detail">底部像幽灵的衣摆一样起伏；连接时升起并流动。</string>
+    <string name="bg_signal_detail">连接按钮周围的圆环；连接时从电源按钮发出波纹。</string>
+    <string name="bg_ghost_pattern_detail">小幽灵图案；连接时缓慢移动。</string>
+    <string name="bg_topography_detail">像地形图一样的等高线；连接时缓慢旋转。</string>
+    <string name="bg_cucumber_detail">黄瓜、腌黄瓜罐和篮子；连接时图案缓慢移动。</string>
+    <string name="bg_mushroomia_detail">玻璃卡片后发光的蘑菇森林；连接时亮起。</string>
+    <string name="bg_locked">背景由配置“%1$s”设置：%2$s。关闭配置主题后将恢复下方的选择。</string>
+    <string name="bg_footer">背景仅在 VPN 开启时移动，在 Android 设置中关闭动画时保持静止。</string>
+    <string name="bg_full_screen">全屏预览</string>
+    <string name="bg_preview_hint_on">这是配置开启时的背景。此处的电源按钮仅用于示例，不会连接。</string>
+    <string name="bg_preview_hint_off">此处的电源按钮仅用于示例：显示配置关闭和开启时的背景，不会连接。</string>
+    <string name="bg_vpn_on">VPN 已开启</string>
+    <string name="bg_vpn_off">VPN 已关闭</string>
+    <string name="bg_apply">应用</string>
+    <string name="bg_applied">已应用</string>
+
+    <!-- Home, the ghost while the tunnel starts -->
+    <string name="connecting">连接中…</string>
+
+    <!-- Settings, About and Debug (as on iOS) -->
+    <string name="debug_subscription">订阅</string>
+    <string name="debug_core">核心</string>
+    <string name="debug_app">应用</string>
+    <string name="congestion_controller">拥塞控制</string>
+    <string name="congestion_default">默认（CUBIC）</string>
+    <string name="debug_stack_footer">仅在 VPN 关闭时可更改。拥塞控制是 mipstack 内部 TCP 使用的算法；默认 CUBIC。</string>
+    <string name="auto_disconnect">自动断开</string>
+    <string name="auto_disconnect_footer">在组中选择其他节点时，关闭经过该组的连接，使应用立即通过新节点重新连接。关闭时，这些连接将留在旧节点上直到结束。</string>
+    <string name="settings_device">设备</string>
+    <string name="settings_active_tunnel">活跃隧道</string>
+    <string name="settings_about_app">关于</string>
+    <string name="settings_diagnostics">诊断</string>
+    <string name="app_version">应用版本</string>
+    <string name="core_version">核心</string>
+    <string name="session_logs">会话日志</string>
+    <string name="vpn_status">VPN 状态</string>
+    <string name="vpn_connected">已连接</string>
+    <string name="vpn_disconnected">已断开</string>
+    <string name="memory">内存</string>
+    <string name="about_the_app">关于</string>
+    <string name="about_version">版本</string>
+    <string name="about_build">构建</string>
+    <string name="about_documentation">文档</string>
+    <string name="tun_stack_mode">网络栈</string>
+    <string name="tun_stack_system">系统</string>
+    <string name="tun_stack_gvisor">gVisor</string>
+    <string name="tun_stack_mixed">混合</string>
+    <string name="tun_stack_mips">mipstack</string>
+
+    <!-- Home's deck of profiles (as on iOS) -->
+    <string name="deck_collapse">收起</string>
+    <string name="deck_update_all">全部更新</string>
+    <string name="deck_file">文件</string>
+    <string name="deck_expired">已过期</string>
+    <string name="deck_until">至 %1$s</string>
+    <string name="deck_update_failed">无法更新配置</string>
+    <string name="deck_make_active">将配置“%1$s”设为当前？</string>
+    <string name="deck_yes">是</string>
+    <plurals name="deck_more_profiles">
+        <item quantity="other">还有 %d 个配置</item>
+    </plurals>
+
+    <!-- A profile opened from Home's deck (as on iOS) -->
+    <string name="opened_make_active">设为当前</string>
+    <string name="opened_active">当前使用</string>
+    <string name="opened_update">更新订阅</string>
+    <string name="opened_renew">续订</string>
+    <string name="opened_support">支持</string>
+    <string name="opened_website">网站</string>
+    <string name="opened_announcement">公告</string>
+    <string name="opened_edit">编辑配置</string>
+    <string name="opened_delete">删除配置</string>
+    <string name="opened_delete_title">删除配置？</string>
+    <string name="opened_delete_message">“%1$s”将被删除。此操作无法撤销。</string>
+    <!-- Wide screens: tablets and unfolded foldables -->
+    <string name="wide_groups_after_connect">开启后即可管理服务器</string>
+    <string name="wide_select_section">选择一个分区</string>
+    <string name="wide_select_profile">选择一个配置</string>
+    <string name="wide_profiles_count">配置 · %d</string>
+
+    <!-- Zashboard -->
+    <string name="zashboard_footer">在 127.0.0.1:9090 上为“设置 → 活动隧道”中的 Zashboard 面板开启内核控制器，由 Zashboard 自己的密钥保护（仅生成一次并保留）。开启期间它是唯一的控制器：“覆写”中的控制器设置会被清除并锁定，配置文件自带的控制器也会被替换。</string>
+    <string name="zashboard_enable_title">开启 Zashboard？</string>
+    <string name="zashboard_enable_clears">“覆写”中的“外部控制器”分组将被清除——地址、TLS、CORS 和 Secret：Zashboard 开启期间，它的控制器是唯一的。</string>
+    <string name="zashboard_enable_reloads">正在运行的 VPN 将重新加载配置，并为 Zashboard 开启控制器。</string>
+    <string name="zashboard_turn_on">开启</string>
+    <string name="zashboard_minimize">最小化 Zashboard</string>
+    <string name="zashboard_show">显示 Zashboard</string>
+    <string name="zashboard_close">关闭 Zashboard</string>
+    <string name="zashboard_stop_vpn">停止 VPN</string>
+    <string name="zashboard_menu">Zashboard 菜单</string>
+    <string name="override_external_controller">外部控制器</string>
+    <string name="override_zashboard_locked">控制器由“调试 → Zashboard”管理：127.0.0.1:9090 及其自己的密钥。开启期间这些设置不可用。</string>
+
+    <!-- Partial Reset -->
+    <string name="partial_reset">部分重置</string>
+    <string name="partial_reset_footer">选择要重置的内容：设置、提示、缓存、日志、配置。</string>
+    <string name="reset_group_hints">提示与通知</string>
+    <string name="reset_group_data">数据</string>
+    <string name="reset_group_profiles">配置</string>
+    <string name="reset_notification_prompt">通知请求</string>
+    <string name="reset_notification_prompt_detail">在通知未被允许时，下次连接会再次询问。</string>
+    <string name="reset_reminder_history">已显示的提醒</string>
+    <string name="reset_reminder_history_detail">已收到过的到期和流量提醒会再次发送；已送达的通知将被移除。</string>
+    <string name="reset_notification_settings">通知设置</string>
+    <string name="reset_notification_settings_detail">状态通知、更新进度、更新错误和订阅提醒。</string>
+    <string name="reset_appearance">语言、主题和主机状态</string>
+    <string name="reset_appearance_detail">语言和主题跟随系统；强调色、主页背景和配置主题恢复默认；主机状态显示指示器。</string>
+    <string name="reset_sorting">排序和最近打开的分组</string>
+    <string name="reset_sorting_detail">分组内节点顺序、最近打开的分组、访问控制中应用列表的排序。</string>
+    <string name="reset_network">网络与访问控制</string>
+    <string name="reset_network_detail">“设置 → 网络”中的全部内容，包括访问控制的应用列表。正在运行的 VPN 将重启。</string>
+    <string name="reset_core">内核设置</string>
+    <string name="reset_core_detail">网络栈、拥塞控制、自动断开、“覆写”和“Meta 功能”、Zashboard 及其密钥。正在运行的 VPN 将重启。</string>
+    <string name="reset_hwid">发送 HWID</string>
+    <string name="reset_hwid_detail">重新开启 HWID 请求头。设备标识本身不变。</string>
+    <string name="reset_logo_cache">徽标和分组图标</string>
+    <string name="reset_logo_cache_detail">显示时重新下载。</string>
+    <string name="reset_session_logs_detail">所有已保存的会话日志；正在记录的日志会保留。</string>
+    <string name="reset_core_cache">内核缓存</string>
+    <string name="reset_core_cache_detail">分组中选择的节点和 fake-ip 地址（cache.db）。仅在 VPN 关闭时可用。</string>
+    <string name="reset_downloads">已下载的规则和数据库</string>
+    <string name="reset_downloads_detail">规则和代理提供者；GeoIP / GeoSite 数据库恢复为应用自带版本；内核会在下次连接时重新下载提供者。仅在 VPN 关闭时可用。</string>
+    <string name="reset_zashboard">Zashboard 数据</string>
+    <string name="reset_zashboard_detail">面板设置、已保存的后端和缓存。打开的面板将被关闭。</string>
+    <string name="reset_profiles">所有配置</string>
+    <string name="reset_profiles_detail">配置、其文件及各配置的设置。VPN 将关闭。</string>
+    <string name="reset_select_all">全选</string>
+    <string name="reset_deselect_all">取消全选</string>
+    <string name="reset_confirm_title">重置所选内容？</string>
+    <string name="reset_action">重置</string>
+    <string name="reset_done_title">重置完成</string>
+    <string name="reset_done_message">所选数据已重置。</string>
+    <string name="reset_select_hint">选择要重置的内容</string>
+    <string name="reset_selected_count">重置所选（%d）</string>
+
+    <!-- Access control: the subscription's own app lists -->
+    <string name="access_control_bypass_from_subscription">绕过 VPN（来自订阅）</string>
+    <string name="access_control_through_from_subscription">经由 VPN（来自订阅）</string>
+    <string name="access_control_subscription_exclude_hint">标记“来自订阅”的应用按配置文件的设置绕过 VPN，任何模式下均如此。在“不允许已选择的应用”模式下勾选的应用会追加到其中。</string>
+    <string name="access_control_subscription_include_hint">配置文件只允许标记“来自订阅”的应用经由 VPN。在“仅允许已选择的应用”模式下勾选的应用会追加到其中；对此类配置文件，“不允许已选择的应用”不生效。</string>
+    <string name="xiaomi_autostart_hint">请在此页面为 Prizrak-Box 开启自启动：否则系统不允许 VPN 在重启后启动。</string>
+    <!-- Settings → Service -->
+    <string name="service_settings">服务</string>
+    <string name="release_ui_background">后台时释放界面</string>
+    <string name="release_ui_background_summary">VPN 运行时应用进入后台即关闭界面：VPN 继续工作，应用占用更少内存</string>
+    <string name="battery_unrestricted">电池优化无限制</string>
+    <string name="battery_unrestricted_on">无限制：系统不会限制 VPN</string>
+    <string name="battery_unrestricted_off">受限制 — 点按以解除限制</string>
+    <string name="battery_unrestricted_already">Prizrak-Box 的电池优化已关闭</string>
+    <string name="battery_unrestricted_footer">开启电池优化时，系统可能在后台停止 VPN 或推迟其自动重启。</string>
+    <string name="tv_profiles_hint">确认 — 设为当前 · 向下 — 操作</string>
+    <string name="tv_profiles_hint_tabs">向下 — 选择配置</string>
+    <string name="tv_profiles_hint_deck">向左 / 向右 — 其他配置 · 确认 — 设为当前 · 向下 — 操作</string>
+    <string name="tv_profiles_hint_deck_active">当前配置 · 向左 / 向右 — 其他配置 · 向下 — 操作</string>
+    <string name="tv_profiles_hint_actions">向上 — 返回选择配置 · 向左 / 向右 — 其他操作</string>
+    <string name="tv_play_pause_hint">遥控器上的播放/暂停可连接或断开</string>
+    <string name="servers">服务器</string>
+    <string name="about_more">详细信息</string>
 </resources>

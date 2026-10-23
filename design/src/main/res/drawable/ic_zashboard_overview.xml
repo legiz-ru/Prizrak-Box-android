@@ -1,0 +1,16 @@
+<!-- Zashboard's dashed cube (Heroicons "cube-transparent", outline, MIT), the
+     icon its sidebar shows: a 1.5 stroke with round ends. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:tint="?attr/colorControlNormal"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M21,7.5L18.75,6.187 M21,7.5L21,9.75 M21,7.5L18.75,8.813 M3,7.5L5.25,6.187 M3,7.5L5.25,8.813 M3,7.5L3,9.75 M12,12.75L14.25,11.437 M12,12.75L9.75,11.437 M12,12.75L12,15 M12,21.75L14.25,20.437 M12,21.75L12,19.5 M12,21.75L9.75,20.437 M9.75,3.562L12,2.25L14.25,3.563 M21,14.25L21,16.5L18.75,17.813 M5.25,17.813L3,16.5L3,14.25" />
+</vector>

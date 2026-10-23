@@ -1,5 +1,13 @@
 package com.github.kr328.clash.design.compose.component
 
+import com.github.kr328.clash.design.compose.dialog.ExpressiveAlert
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.FilledTonalIconButton
+import com.github.kr328.clash.design.compose.background.homeGlass
+import com.github.kr328.clash.design.compose.background.HomeGlassBackdrop
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,7 +27,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -174,61 +181,73 @@ fun ProxyGroupCard(
     groupMap: Map<String, ProxyGroup>,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Open in the right column (a tablet, an unfolded foldable): outlined in the accent. */
+    selected: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val glass = homeGlass()
     Card(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 8.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = scheme.surfaceVariant),
+        // Over Mushroomia, glass: the forest blurred behind it, a light rim.
+        colors = CardDefaults.cardColors(containerColor = if (glass) Color.Transparent else scheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = when {
+            selected -> BorderStroke(2.dp, scheme.primary)
+            glass -> BorderStroke(1.dp, Color.White.copy(alpha = 0.28f))
+            else -> null
+        },
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (group.icon.isNotEmpty()) {
-                RemoteIcon(
-                    url = group.icon,
-                    modifier = Modifier
-                        .padding(end = 12.dp)
-                        .size(28.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_baseline_vpn_lock),
-                        contentDescription = null,
-                        tint = scheme.primary,
+        Box {
+            HomeGlassBackdrop()
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (group.icon.isNotEmpty()) {
+                    RemoteIcon(
+                        url = group.icon,
                         modifier = Modifier
                             .padding(end = 12.dp)
                             .size(28.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_baseline_vpn_lock),
+                            contentDescription = null,
+                            tint = scheme.primary,
+                            modifier = Modifier
+                                .padding(end = 12.dp)
+                                .size(28.dp),
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = scheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = selectedProxyName(groupMap, name, group.now),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = scheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = selectedProxyName(groupMap, name, group.now),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                Icon(
+                    painter = painterResource(R.drawable.ic_mdi_chevron_right),
+                    contentDescription = null,
+                    tint = scheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
                 )
             }
-            Icon(
-                painter = painterResource(R.drawable.ic_mdi_chevron_right),
-                contentDescription = null,
-                tint = scheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
         }
     }
 }
@@ -277,87 +296,22 @@ fun ProxySelectionSheet(
     onTestProxy: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val isSelector = group.type == "Selector"
-    val isSmart = group.type == "Smart"
-    var sort by remember { mutableStateOf(ProxySheetSort.Default) }
-    var showAutoDialog by remember { mutableStateOf(false) }
-    var showSortDialog by remember { mutableStateOf(false) }
-    val listState = rememberLazyListState()
-    val scrollbarColor = MaterialTheme.colorScheme.onSurfaceVariant
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
     val content: @Composable () -> Unit = {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (isTv) Modifier.fillMaxSize() else Modifier),
-        ) {
-            // Top bar: sort | title | url-test
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { showSortDialog = true }) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_baseline_sort),
-                        contentDescription = stringResource(R.string.sort),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(
-                    text = groupName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 8.dp),
-                )
-                IconButton(onClick = onUrlTest) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_baseline_speed),
-                        contentDescription = stringResource(R.string.delay),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            val sorted = remember(group, sort) { sortProxies(group.proxies, sort) }
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(if (isTv) Modifier.weight(1f) else Modifier.heightIn(max = 480.dp))
-                    .verticalScrollbar(listState, scrollbarColor)
-                    .padding(horizontal = 12.dp),
-            ) {
-                items(items = sorted) { proxy ->
-                    ProxyRow(
-                        proxy = proxy,
-                        selected = proxy.name == group.now,
-                        delayState = rowDelayState(groupMap, proxy, proxy.name in testingProxies),
-                        useDots = useDots,
-                        enabled = true,
-                        parentIsSmart = isSmart,
-                        groupMap = groupMap,
-                        onTestDelay = { onTestProxy(proxy.name) },
-                        onClick = {
-                            if (isSelector) {
-                                onSelect(proxy.name)
-                                onDismiss()
-                            } else {
-                                showAutoDialog = true
-                            }
-                        },
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.size(12.dp))
-        }
+        ProxyGroupPane(
+            groupName = groupName,
+            group = group,
+            groupMap = groupMap,
+            useDots = useDots,
+            testingProxies = testingProxies,
+            onSelect = {
+                onSelect(it)
+                onDismiss()
+            },
+            onUrlTest = onUrlTest,
+            onTestProxy = onTestProxy,
+            fill = isTv,
+        )
     }
 
     if (isTv) {
@@ -367,78 +321,150 @@ fun ProxySelectionSheet(
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.surfaceContainer,
             ) {
                 content()
             }
         }
     } else {
-        ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
             content()
+        }
+    }
+}
+
+/**
+ * A group's nodes: sort at the start, the name, the latency test at the end,
+ * then the nodes as a segmented list. In the proxy sheet on a phone, and the
+ * right column of Home on a tablet or an unfolded foldable.
+ *
+ * @param fill take the height given (TV, the right column); otherwise the
+ *   list wraps its nodes up to a sheet's height.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ProxyGroupPane(
+    groupName: String,
+    group: ProxyGroup,
+    groupMap: Map<String, ProxyGroup>,
+    useDots: Boolean,
+    testingProxies: Set<String>,
+    onSelect: (String) -> Unit,
+    onUrlTest: () -> Unit,
+    onTestProxy: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    fill: Boolean = false,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+) {
+    val isSelector = group.type == "Selector"
+    val isSmart = group.type == "Smart"
+    // Kept per group: another group starts from the default order.
+    var sort by remember(groupName) { mutableStateOf(ProxySheetSort.Default) }
+    var showAutoDialog by remember { mutableStateOf(false) }
+    var showSortDialog by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (fill) Modifier.fillMaxSize() else Modifier),
+    ) {
+        // Top bar: sort | title | url-test
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = { showSortDialog = true }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_baseline_sort),
+                    contentDescription = stringResource(R.string.sort),
+                )
+            }
+            Text(
+                text = groupName,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp),
+            )
+            // The whole group under test: the same morphing shape as the
+            // simple-mode test circle on Home, until the results are in.
+            // The group's own name is there until its last node is measured (testGroupLatency).
+            val testing = groupName in testingProxies
+            FilledTonalIconButton(onClick = { if (!testing) onUrlTest() }) {
+                if (testing) {
+                    LoadingIndicator(modifier = Modifier.size(28.dp))
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_baseline_speed),
+                        contentDescription = stringResource(R.string.delay),
+                    )
+                }
+            }
+        }
+
+        val sorted = remember(group, sort) { sortProxies(group.proxies, sort) }
+        PreferenceList(
+            state = listState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (fill) Modifier.weight(1f) else Modifier.heightIn(max = 520.dp)),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding),
+        ) {
+            items(sorted, key = { it.name }) { proxy ->
+                ProxyRow(
+                    proxy = proxy,
+                    selected = proxy.name == group.now,
+                    delayState = rowDelayState(groupMap, proxy, proxy.name in testingProxies),
+                    useDots = useDots,
+                    enabled = true,
+                    parentIsSmart = isSmart,
+                    groupMap = groupMap,
+                    onTestDelay = { onTestProxy(proxy.name) },
+                    onClick = {
+                        if (isSelector) onSelect(proxy.name) else showAutoDialog = true
+                    },
+                    segmented = true,
+                )
+            }
         }
     }
 
     if (showAutoDialog) {
-        AlertDialog(
+        ExpressiveAlert(
             onDismissRequest = { showAutoDialog = false },
-            confirmButton = {
-                TextButton(onClick = { showAutoDialog = false }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            text = { Text(stringResource(R.string.proxy_group_auto_no_select)) },
+            confirmLabel = stringResource(android.R.string.ok),
+            onConfirm = { showAutoDialog = false },
+            text = stringResource(R.string.proxy_group_auto_no_select),
         )
     }
 
     if (showSortDialog) {
-        AlertDialog(
-            onDismissRequest = { showSortDialog = false },
-            title = { Text(stringResource(R.string.sort)) },
-            confirmButton = {
-                TextButton(onClick = { showSortDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-            text = {
-                Column {
-                    SortOption(R.string.default_, ProxySheetSort.Default, sort) {
-                        sort = it; showSortDialog = false
-                    }
-                    SortOption(R.string.name, ProxySheetSort.Name, sort) {
-                        sort = it; showSortDialog = false
-                    }
-                    SortOption(R.string.delay, ProxySheetSort.Delay, sort) {
-                        sort = it; showSortDialog = false
-                    }
-                }
-            },
+        SingleChoiceDialog(
+            title = stringResource(R.string.sort),
+            options = listOf(
+                ProxySheetSort.Default to stringResource(R.string.default_),
+                ProxySheetSort.Name to stringResource(R.string.name),
+                ProxySheetSort.Delay to stringResource(R.string.delay),
+            ),
+            selected = sort,
+            onSelect = { sort = it },
+            onDismiss = { showSortDialog = false },
         )
     }
 }
 
-@Composable
-private fun SortOption(
-    labelRes: Int,
-    value: ProxySheetSort,
-    current: ProxySheetSort,
-    onPick: (ProxySheetSort) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onPick(value) }
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = current == value, onClick = { onPick(value) })
-        Text(
-            text = stringResource(labelRes),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(start = 8.dp),
-        )
-    }
-}
-
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun ProxyRow(
     proxy: Proxy,
@@ -450,6 +476,9 @@ internal fun ProxyRow(
     groupMap: Map<String, ProxyGroup>,
     onClick: () -> Unit,
     onTestDelay: (() -> Unit)? = null,
+    // In a sheet or the Proxy screen: a Material 3 Expressive segmented row.
+    // Home's own list keeps its look.
+    segmented: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -502,19 +531,7 @@ internal fun ProxyRow(
         }
     var showTypeTooltip by remember { mutableStateOf(false) }
 
-    Card(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 3.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) scheme.secondaryContainer else Color.Transparent,
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = if (selected) BorderStroke(1.dp, scheme.primary) else null,
-    ) {
+    val rowContent: @Composable () -> Unit = {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -583,27 +600,51 @@ internal fun ProxyRow(
         }
     }
 
+    if (segmented) {
+        // The chosen one rounds fully and takes the accent's container.
+        val shape = if (selected) MaterialTheme.shapes.extraLarge else segmentShapes(LocalSegment.current).shape
+        Surface(
+            onClick = onClick,
+            enabled = enabled,
+            shape = shape,
+            color = if (selected) scheme.secondaryContainer else scheme.surfaceBright,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(Modifier.padding(horizontal = 2.dp, vertical = 2.dp)) { rowContent() }
+        }
+    } else {
+        Card(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 3.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (selected) scheme.secondaryContainer else Color.Transparent,
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = if (selected) BorderStroke(1.dp, scheme.primary) else null,
+        ) {
+            rowContent()
+        }
+    }
+
     if (showWeight && weightMessage != null) {
-        AlertDialog(
+        ExpressiveAlert(
             onDismissRequest = { showWeight = false },
-            confirmButton = {
-                TextButton(onClick = { showWeight = false }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            text = { Text(weightMessage) },
+            confirmLabel = stringResource(android.R.string.ok),
+            onConfirm = { showWeight = false },
+            text = weightMessage,
         )
     }
 
     if (showTypeTooltip) {
-        AlertDialog(
+        ExpressiveAlert(
             onDismissRequest = { showTypeTooltip = false },
-            confirmButton = {
-                TextButton(onClick = { showTypeTooltip = false }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            text = { Text(typeTooltip) },
+            confirmLabel = stringResource(android.R.string.ok),
+            onConfirm = { showTypeTooltip = false },
+            text = typeTooltip,
         )
     }
 }

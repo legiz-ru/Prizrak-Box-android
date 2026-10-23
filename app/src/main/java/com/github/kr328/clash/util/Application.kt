@@ -26,6 +26,10 @@ object ApplicationObserver {
     val createdActivities: Set<Activity>
         get() = _createdActivities
 
+    /** One of the app's screens is on screen. */
+    val isAppVisible: Boolean
+        get() = appVisible
+
     private val activityObserver = object : Application.ActivityLifecycleCallbacks {
         @Synchronized
         override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {

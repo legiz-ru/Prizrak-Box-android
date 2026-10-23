@@ -46,6 +46,8 @@ subprojects {
 
     extensions.configure<BaseExtension> {
         buildFeatures.buildConfig = true
+        // Off by default since AGP 9: release_name, launch_name and the like.
+        buildFeatures.resValues = true
         defaultConfig {
             // Prizrak-Core version, read from go.mod at build time (the
             // `replace ... => github.com/legiz-ru/Prizrak-Core vX.Y.Z` line).
@@ -56,6 +58,12 @@ subprojects {
             buildConfigField("String", "CORE_VERSION", "\"$moshenCoreVersion\"")
 
             if (isApp) {
+                // The build's own stamp, its UTC date and time when it was built
+                // (About → Build): 23 October 2026, 01:24 UTC → 261023-0124.
+                val buildStamp = java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC)
+                    .format(java.time.format.DateTimeFormatter.ofPattern("yyMMdd-HHmm"))
+                buildConfigField("String", "BUILD_STAMP", "\"$buildStamp\"")
+
                 val customApplicationId = queryConfigProperty("custom.application.id") as? String?
                 applicationId = customApplicationId.takeIf { it?.isNotBlank() == true } ?: "ru.legiz.prizrakbox"
 
@@ -69,8 +77,9 @@ subprojects {
                 else "com.github.kr328.clash.$name"
             }
 
-            minSdk = 23
-            targetSdk = 35
+            // Android 7.0: Material 3 1.5 and Navigation 2.10 need it.
+            minSdk = 24
+            targetSdk = 36
 
             versionName = "1.1"
             versionCode = 101
@@ -91,13 +100,16 @@ subprojects {
             if (!isApp) {
                 consumerProguardFiles("consumer-rules.pro")
             } else {
-                setProperty("archivesBaseName", "prizrak-box-$versionName")
+                // The APKs' name: prizrak-box-1.1-alpha-arm64-v8a-release.apk.
+                project.extensions.getByType<BasePluginExtension>().archivesName.set("prizrak-box-$versionName")
             }
         }
 
-        ndkVersion = "29.0.14206865"
+        ndkVersion = "30.0.16248370"
 
-        compileSdkVersion(defaultConfig.targetSdk!!)
+        // Compose 1.12, AndroidX core 1.19 and Material 3 1.5 need API 37 to
+        // compile against; the app targets 36.
+        compileSdkVersion(37)
 
         if (isApp) {
             packagingOptions {

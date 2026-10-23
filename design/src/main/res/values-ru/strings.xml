@@ -26,7 +26,7 @@
 
     <string name="copied">Скопировано</string>
 
-    <string name="recently">Недавно</string>
+    <string name="recently">Сейчас</string>
 
     <string name="format_minutes">%d мин.</string>
     <string name="format_elements">%d элементов</string>
@@ -234,7 +234,6 @@
     <string name="follow_system_android_10">Как в системе (Android 10+)</string>
     <string name="always_dark">Всегда тёмная</string>
     <string name="always_light">Всегда светлая</string>
-    <string name="always_summer">Всегда Лето 🥒</string>
 
     <string name="allow_all_apps">Разрешить все приложения</string>
     <string name="allow_selected_apps">Разрешить выбранные приложения</string>
@@ -618,9 +617,220 @@
     <string name="open_channel_settings">Звук и вибрация для этого уведомления</string>
     <string name="notification_permission_ask_title">Показывать уведомления?</string>
     <string name="notification_permission_ask_later">Не сейчас</string>
-    <string name="notification_permission_ask_text">Приложению нужно разрешение на уведомления, чтобы показывать статус туннеля и предупреждения о подписке.</string>
+    <string name="notification_permission_ask_text">Приложению нужно разрешение на уведомления, чтобы показывать статус туннеля и предупреждения об окончании срока действия или трафика в подписке.</string>
     <string name="notification_permission_ask_allow">Разрешить</string>
     <string name="notification_permission_blocked">Уведомления заблокированы в системных настройках — пока это не исправлено, ничего из перечисленного ниже не покажется.</string>
     <string name="notification_open_settings">Открыть настройки</string>
     <string name="notification_permission_blocked_short">Заблокировано в системных настройках</string>
+
+    <!-- Settings → Visual (as on iOS) -->
+    <string name="visual">Интерфейс</string>
+    <string name="visual_summary">Тема, цвет акцента, отображение задержки</string>
+    <string name="visual_theme">Тема</string>
+    <string name="theme_auto">Авто</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="theme_light">Светлая</string>
+    <string name="accent_color">Цвет акцента</string>
+    <string name="accent_profile">Как у профиля</string>
+    <string name="accent_green">Зелёный</string>
+    <string name="accent_indigo">Индиго</string>
+    <string name="accent_emerald">Изумрудный</string>
+    <string name="accent_red">Красный</string>
+    <string name="accent_amber">Янтарный</string>
+    <string name="accent_blue">Синий</string>
+    <string name="accent_personalisation">Персонализация</string>
+    <string name="accent_palette">Палитра</string>
+    <string name="accent_grid">Сетка</string>
+    <string name="accent_spectrum">Спектр</string>
+    <string name="accent_examples">Примеры</string>
+    <string name="accent_saved_hint">Цвет станет акцентом после «Сохранить».</string>
+    <string name="accent_hex_hint">6 символов: цифры 0–9 и буквы A–F</string>
+    <string name="accent_locked">Цвет акцента задан профилем «%1$s». Выбор ниже вернётся, если выключить тему профиля.</string>
+    <string name="profile_theme">Тема профиля</string>
+    <string name="profile_theme_footer">Выключите, чтобы вернуть свои настройки. Они не теряются.</string>
+    <string name="profile_theme_leaves">«%1$s» оставляет оформление вам.</string>
+    <string name="profile_theme_sets">«%1$s» задаёт: %2$s</string>
+    <string name="profile_theme_part_accent">акцент</string>
+    <string name="profile_theme_part_card">карточку</string>
+    <string name="profile_theme_part_theme">тему</string>
+    <string name="profile_theme_part_background">фон</string>
+    <string name="set_by_profile">Задано профилем</string>
+    <string name="from_profile">Из профиля</string>
+
+    <!-- Settings → Visual → Home Background (as on iOS) -->
+    <string name="home_background">Фон главной</string>
+    <string name="bg_clean">Чистый</string>
+    <string name="bg_big_ghost">Большой призрак</string>
+    <string name="bg_dot_grid">Точечная сетка</string>
+    <string name="bg_hem">Подол призрака</string>
+    <string name="bg_signal">Сигнал</string>
+    <string name="bg_ghost_pattern">Обои из призраков</string>
+    <string name="bg_topography">Топография</string>
+    <string name="bg_cucumber">Огурчик</string>
+    <string name="bg_mushroomia">Мушрумия</string>
+    <string name="bg_clean_detail">Системный фон, за карточками ничего нет.</string>
+    <string name="bg_big_ghost_detail">Огромный призрак за карточками; при подключении парит.</string>
+    <string name="bg_dot_grid_detail">Тихая сетка точек; при подключении по ней проходит свет.</string>
+    <string name="bg_hem_detail">Низ волнится, как подол призрака; при подключении поднимается и течёт.</string>
+    <string name="bg_signal_detail">Круги вокруг кнопки подключения; при подключении — волны из кнопки выключения.</string>
+    <string name="bg_ghost_pattern_detail">Мелкий узор из призраков; при подключении ползёт.</string>
+    <string name="bg_topography_detail">Линии рельефа, как на карте; при подключении медленно поворачиваются.</string>
+    <string name="bg_cucumber_detail">Огурцы, банки и корзинки; узор ползёт при подключении.</string>
+    <string name="bg_mushroomia_detail">Светящийся грибной лес за стеклянными карточками; разгорается при подключении.</string>
+    <string name="bg_locked">Фон задан профилем «%1$s»: %2$s. Выбор ниже вернётся, если выключить тему профиля.</string>
+    <string name="bg_footer">Фон движется только при включённом VPN и стоит, если в настройках Android отключена анимация.</string>
+    <string name="bg_full_screen">Во весь экран</string>
+    <string name="bg_preview_hint_on">Так фон выглядит при включённом профиле. Кнопка питания здесь — только для примера, ничего не подключает.</string>
+    <string name="bg_preview_hint_off">Кнопка питания здесь — только для примера: показывает фон при выключенном и включённом профиле, ничего не подключает.</string>
+    <string name="bg_vpn_on">VPN включён</string>
+    <string name="bg_vpn_off">VPN выключен</string>
+    <string name="bg_apply">Применить</string>
+    <string name="bg_applied">Применён</string>
+
+    <!-- Home, the ghost while the tunnel starts -->
+    <string name="connecting">Подключение…</string>
+
+    <!-- Settings, About and Debug (as on iOS) -->
+    <string name="debug_subscription">Подписка</string>
+    <string name="debug_core">Ядро</string>
+    <string name="debug_app">Приложение</string>
+    <string name="congestion_controller">Управление перегрузкой</string>
+    <string name="congestion_default">По умолчанию (CUBIC)</string>
+    <string name="debug_stack_footer">Меняется, пока VPN выключен. Управление перегрузкой — алгоритм TCP внутри mipstack; по умолчанию CUBIC.</string>
+    <string name="auto_disconnect">Автоматическое отключение</string>
+    <string name="auto_disconnect_footer">При выборе другого узла в группе закрываются соединения через эту группу, и приложения сразу переподключаются через новый узел. Выключено — они остаются на старом узле, пока не завершатся.</string>
+    <string name="settings_device">Устройство</string>
+    <string name="settings_active_tunnel">Активный туннель</string>
+    <string name="settings_about_app">О приложении</string>
+    <string name="settings_diagnostics">Диагностика</string>
+    <string name="app_version">Версия приложения</string>
+    <string name="core_version">Ядро</string>
+    <string name="session_logs">Логи сессий</string>
+    <string name="vpn_status">Статус VPN</string>
+    <string name="vpn_connected">Подключено</string>
+    <string name="vpn_disconnected">Отключено</string>
+    <string name="memory">Память</string>
+    <string name="about_the_app">О программе</string>
+    <string name="about_version">Версия</string>
+    <string name="about_build">Сборка</string>
+    <string name="about_documentation">Документация</string>
+    <string name="tun_stack_mode">Сетевой стек</string>
+    <string name="tun_stack_system">Системный</string>
+    <string name="tun_stack_gvisor">gVisor</string>
+    <string name="tun_stack_mixed">Смешанный</string>
+    <string name="tun_stack_mips">mipstack</string>
+
+    <!-- Home's deck of profiles (as on iOS) -->
+    <string name="deck_collapse">Свернуть</string>
+    <string name="deck_update_all">Обновить все</string>
+    <string name="deck_file">файл</string>
+    <string name="deck_expired">Истёк</string>
+    <string name="deck_until">до %1$s</string>
+    <string name="deck_update_failed">Не удалось обновить профиль</string>
+    <string name="deck_make_active">Сделать профиль «%1$s» активным?</string>
+    <string name="deck_yes">Да</string>
+    <plurals name="deck_more_profiles">
+        <item quantity="one">Ещё %d профиль</item>
+        <item quantity="few">Ещё %d профиля</item>
+        <item quantity="many">Ещё %d профилей</item>
+        <item quantity="other">Ещё %d профиля</item>
+    </plurals>
+
+    <!-- A profile opened from Home's deck (as on iOS) -->
+    <string name="opened_make_active">Сделать активным</string>
+    <string name="opened_active">Активен</string>
+    <string name="opened_update">Обновить подписку</string>
+    <string name="opened_renew">Продлить</string>
+    <string name="opened_support">Поддержка</string>
+    <string name="opened_website">Сайт</string>
+    <string name="opened_announcement">Объявление</string>
+    <string name="opened_edit">Редактировать профиль</string>
+    <string name="opened_delete">Удалить профиль</string>
+    <string name="opened_delete_title">Удалить профиль?</string>
+    <string name="opened_delete_message">«%1$s» будет удалён. Это нельзя отменить.</string>
+    <!-- Wide screens: tablets and unfolded foldables -->
+    <string name="wide_groups_after_connect">Управление серверами будет доступно после включения</string>
+    <string name="wide_select_section">Выберите раздел</string>
+    <string name="wide_select_profile">Выберите профиль</string>
+    <string name="wide_profiles_count">Профили · %d</string>
+
+    <!-- Zashboard -->
+    <string name="zashboard_footer">Открывает контроллер ядра на 127.0.0.1:9090 для панели Zashboard в Настройках → Активный туннель, под собственным секретом Zashboard — он создаётся один раз и сохраняется. Пока Zashboard включён, его контроллер — единственный: настройки контроллера в «Переопределении» сбрасываются и блокируются, а собственный контроллер профиля заменяется.</string>
+    <string name="zashboard_enable_title">Включить Zashboard?</string>
+    <string name="zashboard_enable_clears">Группа «Внешний контроллер» в «Переопределении» будет сброшена — адрес, TLS, CORS и Secret: пока Zashboard включён, его контроллер — единственный.</string>
+    <string name="zashboard_enable_reloads">Работающий VPN перезагрузит конфигурацию с контроллером для Zashboard.</string>
+    <string name="zashboard_turn_on">Включить</string>
+    <string name="zashboard_minimize">Свернуть Zashboard</string>
+    <string name="zashboard_show">Показать Zashboard</string>
+    <string name="zashboard_close">Закрыть Zashboard</string>
+    <string name="zashboard_stop_vpn">Остановить VPN</string>
+    <string name="zashboard_menu">Меню Zashboard</string>
+    <string name="override_external_controller">Внешний контроллер</string>
+    <string name="override_zashboard_locked">Контроллером управляет Отладка → Zashboard: 127.0.0.1:9090 со своим секретом. Пока он включён, эти настройки недоступны.</string>
+
+    <!-- Partial Reset -->
+    <string name="partial_reset">Частичный сброс</string>
+    <string name="partial_reset_footer">Выберите, что сбросить: настройки, подсказки, кэши, журналы, профили.</string>
+    <string name="reset_group_hints">Подсказки и уведомления</string>
+    <string name="reset_group_data">Данные</string>
+    <string name="reset_group_profiles">Профили</string>
+    <string name="reset_notification_prompt">Запрос уведомлений</string>
+    <string name="reset_notification_prompt_detail">Спросит снова при следующем подключении, пока уведомления не разрешены.</string>
+    <string name="reset_reminder_history">Показанные напоминания</string>
+    <string name="reset_reminder_history_detail">Напоминания о сроке и трафике, которые уже приходили, придут снова; полученные уведомления удаляются.</string>
+    <string name="reset_notification_settings">Настройки уведомлений</string>
+    <string name="reset_notification_settings_detail">Уведомление о статусе, ход обновления, ошибки обновления и напоминания о подписке.</string>
+    <string name="reset_appearance">Язык, тема и статус хоста</string>
+    <string name="reset_appearance_detail">Язык и тема — как в системе; акцент, фон главной и тема профиля — по умолчанию; статус хоста — индикатором.</string>
+    <string name="reset_sorting">Сортировка и последние группы</string>
+    <string name="reset_sorting_detail">Порядок узлов в группах, последняя открытая группа, порядок списка приложений в контроле доступа.</string>
+    <string name="reset_network">Сеть и контроль доступа</string>
+    <string name="reset_network_detail">Всё в Настройки → Сеть, вместе со списком приложений контроля доступа. Работающий VPN перезапустится.</string>
+    <string name="reset_core">Настройки ядра</string>
+    <string name="reset_core_detail">Сетевой стек, управление перегрузкой, автоматическое отключение, «Переопределение» и «Функции Мета», Zashboard с его секретом. Работающий VPN перезапустится.</string>
+    <string name="reset_hwid">Отправка HWID</string>
+    <string name="reset_hwid_detail">Снова включает заголовки HWID. Сам идентификатор устройства не меняется.</string>
+    <string name="reset_logo_cache">Логотипы и иконки групп</string>
+    <string name="reset_logo_cache_detail">Загрузятся заново при показе.</string>
+    <string name="reset_session_logs_detail">Все сохранённые журналы сессий; тот, что записывается сейчас, останется.</string>
+    <string name="reset_core_cache">Кэш ядра</string>
+    <string name="reset_core_cache_detail">Выбранные в группах узлы и адреса fake-ip (cache.db). Только при выключенном VPN.</string>
+    <string name="reset_downloads">Скачанные правила и базы</string>
+    <string name="reset_downloads_detail">Провайдеры правил и прокси; базы GeoIP / GeoSite вернутся к тем, что в приложении; провайдеров ядро скачает заново при следующем подключении. Только при выключенном VPN.</string>
+    <string name="reset_zashboard">Данные Zashboard</string>
+    <string name="reset_zashboard_detail">Настройки панели, сохранённые бэкенды и кэш. Открытая панель закроется.</string>
+    <string name="reset_profiles">Все профили</string>
+    <string name="reset_profiles_detail">Профили, их файлы и настройки профилей. VPN выключится.</string>
+    <string name="reset_select_all">Выбрать все</string>
+    <string name="reset_deselect_all">Снять все</string>
+    <string name="reset_confirm_title">Сбросить выбранное?</string>
+    <string name="reset_action">Сбросить</string>
+    <string name="reset_done_title">Сброс выполнен</string>
+    <string name="reset_done_message">Выбранные данные сброшены.</string>
+    <string name="reset_select_hint">Выберите, что сбросить</string>
+    <string name="reset_selected_count">Сбросить выбранное (%d)</string>
+
+    <!-- Access control: the subscription's own app lists -->
+    <string name="access_control_bypass_from_subscription">Мимо VPN (из подписки)</string>
+    <string name="access_control_through_from_subscription">Через VPN (из подписки)</string>
+    <string name="access_control_subscription_exclude_hint">Приложения с пометкой «из подписки» идут мимо VPN по настройке профиля — в любом режиме. Отмеченные здесь в режиме «Запретить выбранные приложения» добавляются к ним.</string>
+    <string name="access_control_subscription_include_hint">Профиль пускает через VPN только приложения с пометкой «из подписки». Отмеченные здесь в режиме «Разрешить выбранные приложения» добавляются к ним; «Запретить выбранные приложения» с таким профилем не действует.</string>
+    <string name="xiaomi_autostart_hint">Разрешите автозапуск для Prizrak-Box на этом экране: без него система не даст VPN запуститься после перезагрузки.</string>
+    <!-- Settings → Service -->
+    <string name="service_settings">Служба</string>
+    <string name="release_ui_background">Освобождать UI в фоне</string>
+    <string name="release_ui_background_summary">Закрывать экраны приложения, когда оно уходит в фон при работающем VPN: VPN продолжает работать, приложение занимает меньше памяти</string>
+    <string name="battery_unrestricted">Без ограничений батареи</string>
+    <string name="battery_unrestricted_on">Без ограничений: система не сдерживает VPN</string>
+    <string name="battery_unrestricted_off">Ограничено — нажмите, чтобы снять ограничение</string>
+    <string name="battery_unrestricted_already">Оптимизация батареи для Prizrak-Box уже отключена</string>
+    <string name="battery_unrestricted_footer">С оптимизацией батареи система может останавливать VPN в фоне или откладывать его автоматический перезапуск.</string>
+    <string name="tv_profiles_hint">Выбор — сделать активным · Вниз — действия</string>
+    <string name="tv_profiles_hint_tabs">Вниз — выбор профиля</string>
+    <string name="tv_profiles_hint_deck">Влево / вправо — другой профиль · Выбор — сделать активным · Вниз — действия</string>
+    <string name="tv_profiles_hint_deck_active">Активный профиль · Влево / вправо — другой профиль · Вниз — действия</string>
+    <string name="tv_profiles_hint_actions">Вверх — вернуться к выбору профилей · Влево / вправо — другие действия</string>
+    <string name="tv_play_pause_hint">Play/Pause на пульте подключает и отключает</string>
+    <string name="servers">Серверы</string>
+    <string name="about_more">Подробнее</string>
 </resources>

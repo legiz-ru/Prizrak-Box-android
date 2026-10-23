@@ -1,16 +1,14 @@
 package com.github.kr328.clash
 
-import android.content.res.Configuration
 import androidx.activity.compose.setContent
 import com.github.kr328.clash.core.Clash
 import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.screen.OverrideSettingsScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.util.withClash
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.github.kr328.clash.design.compose.dialog.ExpressiveDialog
 import kotlinx.coroutines.channels.Channel
+import com.github.kr328.clash.zashboard.ZashboardSession
+import com.github.kr328.clash.zashboard.clearController
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -22,18 +20,23 @@ class OverrideSettingsActivity : BaseActivity() {
     override suspend fun main() {
         val configuration = withClash { queryOverride(Clash.OverrideSlot.Persist) }
 
+        // Debug → Zashboard holds the controller: its settings stay cleared.
+        val zashboard = ZashboardSession.isEnabled(this)
+
         defer {
+            if (ZashboardSession.isEnabled(this)) configuration.clearController()
             withClash {
                 patchOverride(Clash.OverrideSlot.Persist, configuration)
             }
         }
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 OverrideSettingsScreen(
                     configuration = configuration,
                     onBack = { finish() },
                     onReset = { resetRequests.trySend(Unit) },
+                    zashboard = zashboard,
                 )
             }
         }
@@ -57,10 +60,10 @@ class OverrideSettingsActivity : BaseActivity() {
 
     private suspend fun requestResetConfirm(): Boolean {
         return suspendCancellableCoroutine { ctx ->
-            val dialog = MaterialAlertDialogBuilder(this)
+            val dialog = ExpressiveDialog.Builder(this)
                 .setTitle(R.string.reset_override_settings)
                 .setMessage(R.string.reset_override_settings_message)
-                .setPositiveButton(R.string.ok) { _, _ -> ctx.resume(true) }
+                .setDestructiveButton(R.string.ok) { _, _ -> ctx.resume(true) }
                 .setNegativeButton(R.string.cancel) { _, _ -> }
                 .show()
 
@@ -69,21 +72,6 @@ class OverrideSettingsActivity : BaseActivity() {
             }
 
             ctx.invokeOnCancellation { dialog.dismiss() }
-        }
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
         }
     }
 }

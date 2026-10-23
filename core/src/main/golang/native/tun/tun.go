@@ -17,9 +17,22 @@ import (
 func Start(fd int, stack, gateway, portal, dns string) (io.Closer, error) {
 	log.Debugln("TUN: fd = %d, stack = %s, gateway = %s, portal = %s, dns = %s", fd, stack, gateway, portal, dns)
 
+	// "mips:bbr": mipstack with its TCP congestion controller (Prizrak-Core's
+	// tun `congestion-controller`: cubic, reno, bbr, bbr3); the other stacks
+	// ignore it.
+	stack, congestion, _ := strings.Cut(stack, ":")
+
 	tunStack, ok := C.StackTypeMapping[strings.ToLower(stack)]
 	if !ok {
 		tunStack = C.TunSystem
+	}
+	switch congestion {
+	case "cubic", "reno", "bbr", "bbr3":
+		if tunStack != C.TunMips {
+			congestion = ""
+		}
+	default:
+		congestion = ""
 	}
 
 	var prefix4 []netip.Prefix
@@ -52,16 +65,17 @@ func Start(fd int, stack, gateway, portal, dns string) (io.Closer, error) {
 	}
 
 	options := LC.Tun{
-		Enable:              true,
-		Device:              sing_tun.InterfaceName,
-		Stack:               tunStack,
-		DNSHijack:           dnsHijack,
-		AutoRoute:           false, // had set route in TunService.kt
-		AutoDetectInterface: false, // implements by VpnService::protect
-		Inet4Address:        prefix4,
-		Inet6Address:        prefix6,
-		MTU:                 9000, // private const val TUN_MTU = 9000 in TunService.kt
-		FileDescriptor:      fd,
+		Enable:               true,
+		Device:               sing_tun.InterfaceName,
+		Stack:                tunStack,
+		CongestionController: congestion,
+		DNSHijack:            dnsHijack,
+		AutoRoute:            false, // had set route in TunService.kt
+		AutoDetectInterface:  false, // implements by VpnService::protect
+		Inet4Address:         prefix4,
+		Inet6Address:         prefix6,
+		MTU:                  9000, // private const val TUN_MTU = 9000 in TunService.kt
+		FileDescriptor:       fd,
 	}
 
 	tunOptions, _ := json.Marshal(options)

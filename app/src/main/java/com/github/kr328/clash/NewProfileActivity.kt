@@ -3,7 +3,6 @@ package com.github.kr328.clash
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
-import android.content.res.Configuration
 import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
@@ -17,9 +16,6 @@ import com.github.kr328.clash.common.util.intent
 import com.github.kr328.clash.common.util.setUUID
 import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.screen.NewProfileScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.design.model.ProfileProvider
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.util.sendProfileToTv
@@ -29,7 +25,8 @@ import io.github.g00fy2.quickie.QRResult.QRError
 import io.github.g00fy2.quickie.QRResult.QRMissingPermission
 import io.github.g00fy2.quickie.QRResult.QRSuccess
 import io.github.g00fy2.quickie.QRResult.QRUserCanceled
-import io.github.g00fy2.quickie.ScanQRCode
+import io.github.g00fy2.quickie.ScanCustomCode
+import com.github.kr328.clash.util.qrScannerConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
@@ -43,13 +40,13 @@ class NewProfileActivity : BaseActivity() {
 
     private val providersFlow = MutableStateFlow<List<ProfileProvider>>(emptyList())
 
-    private val scanLauncher = registerForActivityResult(ScanQRCode(), ::scanResultHandler)
+    private val scanLauncher = registerForActivityResult(ScanCustomCode(), ::scanResultHandler)
 
     override suspend fun main() {
         providersFlow.value = queryProfileProviders()
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val providers by providersFlow.collectAsStateWithLifecycle()
                 NewProfileScreen(
                     providers = providers,
@@ -67,7 +64,7 @@ class NewProfileActivity : BaseActivity() {
 
     private fun onSelect(provider: ProfileProvider) {
         if (provider is ProfileProvider.QR) {
-            scanLauncher.launch(null)
+            scanLauncher.launch(qrScannerConfig)
             return
         }
         launch {
@@ -202,20 +199,5 @@ class NewProfileActivity : BaseActivity() {
 
     private fun toast(resId: Int) {
         Toast.makeText(this, resId, Toast.LENGTH_LONG).show()
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
     }
 }

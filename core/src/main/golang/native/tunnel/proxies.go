@@ -371,7 +371,6 @@ func PatchSelector(selector, name string) bool {
 			log.Warnln("Patch selector `%s`: %s", selector, err.Error())
 		}
 		log.Infoln("Patch selector %s -> %s", selector, name)
-		closeConnByGroup(selector)
 		return true
 	}
 
@@ -395,7 +394,9 @@ func PatchSelector(selector, name string) bool {
 
 	log.Infoln("Patch selector %s -> %s", selector, name)
 
-	closeConnByGroup(selector)
+	// The group's connections are not closed here: the app does it, by Debug →
+	// Auto Disconnect (on by default) — not for LoadBalance or Smart, not for
+	// the node already chosen (ClashManager.patchSelector), as on iOS.
 
 	return true
 }

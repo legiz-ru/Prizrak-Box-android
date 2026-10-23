@@ -161,7 +161,7 @@ object SubscriptionAlerts {
             }
         }
 
-        if (snapshot.total > 0 && snapshot.trafficPercent.isNotEmpty()) {
+        if (hasQuota(snapshot.total) && snapshot.trafficPercent.isNotEmpty()) {
             val used = snapshot.used.coerceAtLeast(0)
             val reached = { threshold: Int -> percentReached(used, snapshot.total, threshold) }
 
@@ -189,17 +189,25 @@ object SubscriptionAlerts {
         return Outcome(alerts = alerts, notified = map)
     }
 
+    /**
+     * Whether [total] is a real quota: panels send `total=0` — or `1`, a byte no
+     * one could live on — for an unlimited subscription, the same as the cards
+     * show it (no "Total" row below 2).
+     */
+    fun hasQuota(total: Long): Boolean = total > 1
+
     private fun percentReached(used: Long, total: Long, threshold: Int): Boolean {
         return usedPercent(used, total)?.let { it >= threshold } ?: false
     }
 
     /**
      * Percent of the quota used right now, rounded down, or null when the quota
-     * is unknown. A notification or dialog says this instead of the threshold
-     * that fired: by the time it is read, the traffic is a few percent past it.
+     * is unknown or unlimited. A notification or dialog says this instead of the
+     * threshold that fired: by the time it is read, the traffic is a few percent
+     * past it.
      */
     fun usedPercent(used: Long, total: Long): Int? {
-        if (total <= 0) return null
+        if (!hasQuota(total)) return null
 
         val spent = used.coerceAtLeast(0)
         val whole = spent / total * 100

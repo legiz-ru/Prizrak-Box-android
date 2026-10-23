@@ -32,6 +32,8 @@ fun OverrideSettingsScreen(
     configuration: ConfigurationOverride,
     onBack: () -> Unit,
     onReset: () -> Unit,
+    /** Debug → Zashboard is on: it holds the controller, whose settings here are locked. */
+    zashboard: Boolean = false,
 ) {
     // dns.enable as snapshot state so dependent DNS rows' enabled flag updates live when
     // the strategy row changes it (read as `dnsEnable != false` inside each item). Editable
@@ -87,7 +89,7 @@ fun OverrideSettingsScreen(
             }
         },
     ) {
-        item { SettingsCategory(stringResource(R.string.general)) }
+        category(R.string.general)
 
         item { PortPreference(stringResource(R.string.http_port), configuration.httpPort) { configuration.httpPort = it } }
         item { PortPreference(stringResource(R.string.socks_port), configuration.socksPort) { configuration.socksPort = it } }
@@ -109,26 +111,6 @@ fun OverrideSettingsScreen(
         item { SelectablePreference(stringResource(R.string.ipv6), booleanOptions, configuration.ipv6) { configuration.ipv6 = it } }
 
         item { StringPreference(stringResource(R.string.bind_address), configuration.bindAddress, stringResource(R.string.default_)) { configuration.bindAddress = it } }
-        item { StringPreference(stringResource(R.string.external_controller), configuration.externalController, stringResource(R.string.default_)) { configuration.externalController = it } }
-        item { StringPreference(stringResource(R.string.external_controller_tls), configuration.externalControllerTLS, stringResource(R.string.default_)) { configuration.externalControllerTLS = it } }
-
-        item {
-            EditableListPreference(
-                title = stringResource(R.string.allow_origins),
-                value = configuration.externalControllerCors.allowOrigins,
-                adapter = TextAdapter.String,
-                placeholder = stringResource(R.string.dont_modify),
-                onValueChange = { configuration.externalControllerCors.allowOrigins = it },
-            )
-        }
-        item {
-            SelectablePreference(stringResource(R.string.allow_private_network), booleanOptions, configuration.externalControllerCors.allowPrivateNetwork) {
-                configuration.externalControllerCors.allowPrivateNetwork = it
-            }
-        }
-
-        item { StringPreference(stringResource(R.string.secret), configuration.secret, stringResource(R.string.default_)) { configuration.secret = it } }
-
         item { SelectablePreference(stringResource(R.string.mode), modeOptions, configuration.mode) { configuration.mode = it } }
 
         item { SelectablePreference(stringResource(R.string.log_level), logLevelOptions, configuration.logLevel) { configuration.logLevel = it } }
@@ -144,7 +126,29 @@ fun OverrideSettingsScreen(
             )
         }
 
-        item { SettingsCategory(stringResource(R.string.dns)) }
+        // The core's controller. Debug → Zashboard holds it while on: these are cleared then, and locked.
+        category(R.string.override_external_controller)
+        item { StringPreference(stringResource(R.string.external_controller), configuration.externalController, stringResource(R.string.default_), !zashboard) { configuration.externalController = it } }
+        item { StringPreference(stringResource(R.string.external_controller_tls), configuration.externalControllerTLS, stringResource(R.string.default_), !zashboard) { configuration.externalControllerTLS = it } }
+        item {
+            EditableListPreference(
+                title = stringResource(R.string.allow_origins),
+                value = configuration.externalControllerCors.allowOrigins,
+                adapter = TextAdapter.String,
+                placeholder = stringResource(R.string.dont_modify),
+                enabled = !zashboard,
+                onValueChange = { configuration.externalControllerCors.allowOrigins = it },
+            )
+        }
+        item {
+            SelectablePreference(stringResource(R.string.allow_private_network), booleanOptions, configuration.externalControllerCors.allowPrivateNetwork, !zashboard) {
+                configuration.externalControllerCors.allowPrivateNetwork = it
+            }
+        }
+        item { StringPreference(stringResource(R.string.secret), configuration.secret, stringResource(R.string.default_), !zashboard) { configuration.secret = it } }
+        if (zashboard) footnote(R.string.override_zashboard_locked)
+
+        category(R.string.dns)
 
         item { SelectablePreference(stringResource(R.string.strategy), dnsStrategyOptions, configuration.dns.enable) { configuration.dns.enable = it; dnsEnable = it } }
 

@@ -12,61 +12,62 @@
     <color name="color_dark_control_disabled">#FF606060</color>
     <color name="color_error">#FFB00020</color>
 
-    <!-- Material 3 Dark Theme Colors -->
-    <color name="md3_dark_primary">#FF8AB4F8</color>
-    <color name="md3_dark_onPrimary">#FF002D6D</color>
-    <color name="md3_dark_primaryContainer">#FF004397</color>
-    <color name="md3_dark_onPrimaryContainer">#FFD4E3FF</color>
-    <color name="md3_dark_secondary">#FFBBC7DB</color>
-    <color name="md3_dark_onSecondary">#FF253140</color>
-    <color name="md3_dark_secondaryContainer">#FF3B4858</color>
-    <color name="md3_dark_onSecondaryContainer">#FFD7E3F8</color>
-    <color name="md3_dark_tertiary">#FFD4BDE6</color>
-    <color name="md3_dark_onTertiary">#FF392849</color>
-    <color name="md3_dark_tertiaryContainer">#FF503F61</color>
-    <color name="md3_dark_onTertiaryContainer">#FFF0DBFF</color>
+    <!-- Material 3, dark. Neutral: the accent colours only the Compose screens,
+         the View dialogs left use the text colour (as iOS's alerts do in Settings). -->
+    <color name="md3_dark_primary">#FFE3E2E6</color>
+    <color name="md3_dark_onPrimary">#FF1B1B1F</color>
+    <color name="md3_dark_primaryContainer">#FF363636</color>
+    <color name="md3_dark_onPrimaryContainer">#FFE3E2E6</color>
+    <color name="md3_dark_secondary">#FFC8C8CD</color>
+    <color name="md3_dark_onSecondary">#FF1B1B1F</color>
+    <color name="md3_dark_secondaryContainer">#FF363636</color>
+    <color name="md3_dark_onSecondaryContainer">#FFE3E2E6</color>
+    <color name="md3_dark_tertiary">#FFC8C8CD</color>
+    <color name="md3_dark_onTertiary">#FF1B1B1F</color>
+    <color name="md3_dark_tertiaryContainer">#FF363636</color>
+    <color name="md3_dark_onTertiaryContainer">#FFE3E2E6</color>
     <color name="md3_dark_error">#FFFFB4AB</color>
     <color name="md3_dark_onError">#FF690005</color>
     <color name="md3_dark_background">#FF0F0F0F</color>
     <color name="md3_dark_onBackground">#FFE3E2E6</color>
     <color name="md3_dark_surface">#FF0F0F0F</color>
     <color name="md3_dark_onSurface">#FFE3E2E6</color>
-    <color name="md3_dark_surfaceVariant">#FF44474E</color>
-    <color name="md3_dark_onSurfaceVariant">#FFC4C6CF</color>
-    <color name="md3_dark_outline">#FF8E9099</color>
+    <color name="md3_dark_surfaceVariant">#FF444448</color>
+    <color name="md3_dark_onSurfaceVariant">#FFC8C8CD</color>
+    <color name="md3_dark_outline">#FF8E8E93</color>
     <color name="md3_dark_surfaceContainer">#FF1E1E1E</color>
     <color name="md3_dark_surfaceContainerHigh">#FF2B2B2B</color>
     <color name="md3_dark_surfaceContainerHighest">#FF363636</color>
 
-    <!-- Material 3 Light Theme Colors -->
-    <color name="md3_light_primary">#FF1A5FAC</color>
+    <!-- Material 3, light. Neutral, as the dark ones. -->
+    <color name="md3_light_primary">#FF1B1B1F</color>
     <color name="md3_light_onPrimary">#FFFFFFFF</color>
-    <color name="md3_light_primaryContainer">#FFD4E3FF</color>
-    <color name="md3_light_onPrimaryContainer">#FF001C3A</color>
-    <color name="md3_light_secondary">#FF535F70</color>
+    <color name="md3_light_primaryContainer">#FFE0E0E3</color>
+    <color name="md3_light_onPrimaryContainer">#FF1B1B1F</color>
+    <color name="md3_light_secondary">#FF47474C</color>
     <color name="md3_light_onSecondary">#FFFFFFFF</color>
-    <color name="md3_light_secondaryContainer">#FFD7E3F8</color>
-    <color name="md3_light_onSecondaryContainer">#FF101C2B</color>
-    <color name="md3_light_tertiary">#FF6B5778</color>
+    <color name="md3_light_secondaryContainer">#FFE0E0E3</color>
+    <color name="md3_light_onSecondaryContainer">#FF1B1B1F</color>
+    <color name="md3_light_tertiary">#FF47474C</color>
     <color name="md3_light_onTertiary">#FFFFFFFF</color>
-    <color name="md3_light_tertiaryContainer">#FFF0DBFF</color>
-    <color name="md3_light_onTertiaryContainer">#FF251432</color>
+    <color name="md3_light_tertiaryContainer">#FFE0E0E3</color>
+    <color name="md3_light_onTertiaryContainer">#FF1B1B1F</color>
     <color name="md3_light_error">#FFB3261E</color>
     <color name="md3_light_onError">#FFFFFFFF</color>
     <color name="md3_light_background">#FFFAFAFA</color>
     <color name="md3_light_onBackground">#FF1B1B1F</color>
     <color name="md3_light_surface">#FFFAFAFA</color>
     <color name="md3_light_onSurface">#FF1B1B1F</color>
-    <color name="md3_light_surfaceVariant">#FFE0E2EC</color>
-    <color name="md3_light_onSurfaceVariant">#FF44474E</color>
-    <color name="md3_light_outline">#FF74777F</color>
-    <color name="md3_light_outlineVariant">#FFC4C6CF</color>
+    <color name="md3_light_surfaceVariant">#FFE4E4E7</color>
+    <color name="md3_light_onSurfaceVariant">#FF47474C</color>
+    <color name="md3_light_outline">#FF78787E</color>
+    <color name="md3_light_outlineVariant">#FFC8C8CD</color>
     <color name="md3_light_surfaceContainer">#FFF0F0F3</color>
     <color name="md3_light_surfaceContainerHigh">#FFE8E8EB</color>
     <color name="md3_light_surfaceContainerHighest">#FFE0E0E3</color>
 
     <!-- Dark theme additional -->
-    <color name="md3_dark_outlineVariant">#FF44474E</color>
+    <color name="md3_dark_outlineVariant">#FF444448</color>
 
     <!-- Special UI Colors -->
     <color name="color_power_off">#FF3A3A3A</color>
@@ -74,31 +75,4 @@
     <color name="color_card_surface">#FF2B2B2B</color>
     <color name="color_bottom_nav_dark">#FF141414</color>
     <color name="color_bottom_nav_indicator">#FF2A3A4A</color>
-
-    <!-- Summer Theme Colors (Green palette) 🥒 -->
-    <color name="md3_summer_primary">#FF43A047</color>
-    <color name="md3_summer_onPrimary">#FFFFFFFF</color>
-    <color name="md3_summer_primaryContainer">#FFC8E6C9</color>
-    <color name="md3_summer_onPrimaryContainer">#FF1B5E20</color>
-    <color name="md3_summer_secondary">#FF66BB6A</color>
-    <color name="md3_summer_onSecondary">#FFFFFFFF</color>
-    <color name="md3_summer_secondaryContainer">#FFC8E6C9</color>
-    <color name="md3_summer_onSecondaryContainer">#FF1B5E20</color>
-    <color name="md3_summer_tertiary">#FF81C784</color>
-    <color name="md3_summer_onTertiary">#FFFFFFFF</color>
-    <color name="md3_summer_tertiaryContainer">#FFA5D6A7</color>
-    <color name="md3_summer_onTertiaryContainer">#FF388E3C</color>
-    <color name="md3_summer_error">#FFB3261E</color>
-    <color name="md3_summer_onError">#FFFFFFFF</color>
-    <color name="md3_summer_background">#FFFFFBF5</color>
-    <color name="md3_summer_onBackground">#FF1B1B1F</color>
-    <color name="md3_summer_surface">#FFFAFFF8</color>
-    <color name="md3_summer_onSurface">#FF1B1B1F</color>
-    <color name="md3_summer_surfaceVariant">#FFE0F2E9</color>
-    <color name="md3_summer_onSurfaceVariant">#FF37474F</color>
-    <color name="md3_summer_outline">#FF689F38</color>
-    <color name="md3_summer_outlineVariant">#FFC5E1A5</color>
-    <color name="md3_summer_surfaceContainer">#FFF1F8F4</color>
-    <color name="md3_summer_surfaceContainerHigh">#FFE8F5E9</color>
-    <color name="md3_summer_surfaceContainerHighest">#FFDCEDC8</color>
 </resources>

@@ -59,15 +59,42 @@ class ClashManager(private val context: Context) : IClashManager,
     }
 
     override fun patchSelector(group: String, name: String): Boolean {
+        // What the group was before: only a real switch closes anything.
+        val before = if (store.disconnectOnNodeSwitch) {
+            runCatching { Clash.queryGroup(group, ProxySort.Default) }.getOrNull()
+        } else {
+            null
+        }
+
         return Clash.patchSelector(group, name).also {
             val current = store.activeProfile ?: return@also
 
             if (it) {
                 SelectionDao().setSelected(Selection(current, group, name))
+                if (before != null) closeConnectionsThrough(group, before, name)
             } else {
                 SelectionDao().removeSelected(current, group)
             }
         }
+    }
+
+    /**
+     * Debug → Auto Disconnect, as Zashboard does it: the connections going
+     * through [group] closed, so apps reconnect through the new node. Not for
+     * the node already chosen, and never for LoadBalance or Smart groups —
+     * they spread connections themselves, no single node was "switched".
+     */
+    private fun closeConnectionsThrough(group: String, before: ProxyGroup, chosen: String) {
+        if (before.now == chosen) return
+        if (before.type.equals("LoadBalance", ignoreCase = true) || before.type.equals("Smart", ignoreCase = true)) {
+            Log.i("Auto disconnect: $group is ${before.type}, nothing closed")
+            return
+        }
+        runCatching {
+            val through = Clash.queryConnections().connections.filter { group in it.chains }
+            through.forEach { Clash.closeConnection(it.id) }
+            Log.i("Auto disconnect: $group ${before.now} → $chosen, closed ${through.size} connections")
+        }.onFailure { Log.w("Auto disconnect: $group failed", it) }
     }
 
     override fun patchOverride(slot: Clash.OverrideSlot, configuration: ConfigurationOverride) {

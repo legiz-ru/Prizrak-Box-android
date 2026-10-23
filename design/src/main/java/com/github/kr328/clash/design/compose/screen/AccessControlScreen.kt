@@ -1,5 +1,15 @@
 package com.github.kr328.clash.design.compose.screen
 
+import com.github.kr328.clash.design.compose.theme.ClashTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.LaunchedEffect
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.FilledIconToggleButton
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -40,6 +50,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.LocalSegment
+import com.github.kr328.clash.design.compose.component.PreferenceList
+import com.github.kr328.clash.design.compose.component.SearchField
+import com.github.kr328.clash.design.compose.component.listPadding
+import com.github.kr328.clash.design.compose.component.segmentColors
+import com.github.kr328.clash.design.compose.component.segmentShapes
 import com.github.kr328.clash.design.compose.component.PreferenceRow
 import com.github.kr328.clash.design.compose.component.SingleChoiceDialog
 import com.github.kr328.clash.design.model.AppInfo
@@ -81,6 +98,10 @@ fun AccessControlScreen(
     onSetSort: (AppInfoSort) -> Unit,
     onSetReverse: (Boolean) -> Unit,
     onSetSystemApps: (Boolean) -> Unit,
+    /** The active profile's `tun.include-package`: only these go through the VPN. */
+    subscriptionInclude: Set<String> = emptySet(),
+    /** The active profile's `tun.exclude-package`: these go around it. */
+    subscriptionExclude: Set<String> = emptySet(),
 ) {
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -101,76 +122,76 @@ fun AccessControlScreen(
         }
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                if (searching) {
-                    SearchTopBar(
-                        query = query,
-                        onQueryChange = { query = it },
-                        onClose = { searching = false; query = "" },
-                    )
-                } else {
-                    AccessControlTopBar(
-                        sort = sort,
-                        reverse = reverse,
-                        systemApps = systemApps,
-                        onBack = onBack,
-                        onStartSearch = { searching = true },
-                        onSelectAll = onSelectAll,
-                        onSelectNone = onSelectNone,
-                        onSelectInvert = onSelectInvert,
-                        onImport = onImport,
-                        onExport = onExport,
-                        onOpenSort = { showSort = true },
-                        onSetReverse = onSetReverse,
-                        onSetSystemApps = onSetSystemApps,
-                    )
+    BackHandler(enabled = searching) { searching = false; query = "" }
+
+    ExpressiveScaffold(
+        title = stringResource(R.string.access_control_apps),
+        onBack = onBack,
+        actions = {
+            AccessControlActions(
+                searching = searching,
+                reverse = reverse,
+                systemApps = systemApps,
+                onToggleSearch = {
+                    if (searching) query = ""
+                    searching = !searching
+                },
+                onSelectAll = onSelectAll,
+                onSelectNone = onSelectNone,
+                onSelectInvert = onSelectInvert,
+                onImport = onImport,
+                onExport = onExport,
+                onOpenSort = { showSort = true },
+                onSetReverse = onSetReverse,
+                onSetSystemApps = onSetSystemApps,
+            )
+        },
+    ) { inner ->
+        PreferenceList(modifier = Modifier.fillMaxSize(), contentPadding = listPadding(inner)) {
+            if (searching) {
+                // The query is about the list: the mode is not pinned above the results.
+                free("search") {
+                    val focus = remember { FocusRequester() }
+                    LaunchedEffect(Unit) { focus.requestFocus() }
+                    SearchField(query = query, onQueryChange = { query = it }, modifier = Modifier.focusRequester(focus))
                 }
-            },
-        ) { inner ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(inner),
-            ) {
-                // Hidden while searching: the query is about the list, and a
-                // setting pinned above the results would just be in the way.
-                if (!searching) {
-                    item(key = "mode") {
-                        Column {
-                            PreferenceRow(
-                                title = stringResource(R.string.access_control_mode),
-                                summary = modeOptions.firstOrNull { it.first == mode }?.second,
-                                icon = R.drawable.ic_baseline_vpn_lock,
-                                onClick = { showMode = true },
-                            )
-
-                            if (mode == AccessControlMode.AcceptAll) {
-                                Text(
-                                    text = stringResource(R.string.access_control_all_hint),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(
-                                        start = 16.dp,
-                                        end = 16.dp,
-                                        bottom = 12.dp,
-                                    ),
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                    }
-                }
-
-                items(items = visibleApps, key = { it.packageName }) { app ->
-                    AppRow(
-                        app = app,
-                        checked = app.packageName in selected,
-                        onToggle = { onToggle(app.packageName) },
+            } else {
+                item(key = "mode") {
+                    PreferenceRow(
+                        title = stringResource(R.string.access_control_mode),
+                        summary = modeOptions.firstOrNull { it.first == mode }?.second,
+                        icon = R.drawable.ic_baseline_vpn_lock,
+                        onClick = { showMode = true },
                     )
                 }
+                if (mode == AccessControlMode.AcceptAll && subscriptionInclude.isEmpty() && subscriptionExclude.isEmpty()) {
+                    footnote(R.string.access_control_all_hint)
+                }
+                // The subscription's own lists come first; what is ticked here adds to them.
+                when {
+                    subscriptionInclude.isNotEmpty() -> footnote(R.string.access_control_subscription_include_hint)
+                    subscriptionExclude.isNotEmpty() -> footnote(R.string.access_control_subscription_exclude_hint)
+                }
+                gap()
+            }
+
+            items(visibleApps, key = { it.packageName }) { app ->
+                val pkg = app.packageName
+                // An include list wins: with one, the exclude list is not applied (Android takes one of them).
+                val route = when {
+                    pkg in subscriptionInclude -> SubscriptionRoute.Through
+                    subscriptionInclude.isEmpty() && pkg in subscriptionExclude -> SubscriptionRoute.Bypass
+                    else -> null
+                }
+                // In the mode that does what the subscription does, its apps are ticked and stay so.
+                val locked = (route == SubscriptionRoute.Bypass && mode == AccessControlMode.DenySelected) ||
+                    (route == SubscriptionRoute.Through && mode == AccessControlMode.AcceptSelected)
+                AppRow(
+                    app = app,
+                    checked = locked || pkg in selected,
+                    route = route,
+                    onToggle = { if (!locked) onToggle(pkg) },
+                )
             }
         }
     }
@@ -200,14 +221,12 @@ fun AccessControlScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AccessControlTopBar(
-    sort: AppInfoSort,
+private fun AccessControlActions(
+    searching: Boolean,
     reverse: Boolean,
     systemApps: Boolean,
-    onBack: () -> Unit,
-    onStartSearch: () -> Unit,
+    onToggleSearch: () -> Unit,
     onSelectAll: () -> Unit,
     onSelectNone: () -> Unit,
     onSelectInvert: () -> Unit,
@@ -218,30 +237,20 @@ private fun AccessControlTopBar(
     onSetSystemApps: (Boolean) -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    TopAppBar(
-        title = { Text(stringResource(R.string.access_control_apps)) },
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                    contentDescription = null,
-                )
-            }
-        },
-        actions = {
-            IconButton(onClick = onStartSearch) {
+            FilledIconToggleButton(checked = searching, onCheckedChange = { onToggleSearch() }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_baseline_search),
                     contentDescription = stringResource(R.string.search),
                 )
             }
+            Box {
             IconButton(onClick = { menuOpen = true }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_baseline_more_vert),
                     contentDescription = null,
                 )
             }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = MaterialTheme.shapes.large) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.select_all)) },
                     onClick = { menuOpen = false; onSelectAll() },
@@ -279,64 +288,48 @@ private fun AccessControlTopBar(
                     onClick = { menuOpen = false; onSetSystemApps(!systemApps) },
                 )
             }
-        },
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SearchTopBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onClose: () -> Unit,
-) {
-    TopAppBar(
-        navigationIcon = {
-            IconButton(onClick = onClose) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                    contentDescription = null,
-                )
             }
-        },
-        title = {
-            TextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.search)) },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-    )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AppRow(app: AppInfo, checked: Boolean, onToggle: () -> Unit) {
+private fun AppRow(app: AppInfo, checked: Boolean, route: SubscriptionRoute?, onToggle: () -> Unit) {
     val painter = remember(app) { BitmapPainter(app.icon.toBitmap(96, 96).asImageBitmap()) }
-    ListItem(
-        headlineContent = {
-            Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        },
+    SegmentedListItem(
+        checked = checked,
+        onCheckedChange = { onToggle() },
+        shapes = segmentShapes(LocalSegment.current),
+        colors = segmentColors(),
+        modifier = Modifier.fillMaxWidth(),
         supportingContent = {
-            Text(app.packageName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            androidx.compose.foundation.layout.Column {
+                Text(app.packageName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (route != null) {
+                    Text(
+                        stringResource(
+                            if (route == SubscriptionRoute.Bypass) R.string.access_control_bypass_from_subscription
+                            else R.string.access_control_through_from_subscription
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                }
+            }
         },
         leadingContent = {
             Image(painter = painter, contentDescription = null, modifier = Modifier.size(40.dp))
         },
         trailingContent = {
-            Checkbox(checked = checked, onCheckedChange = { onToggle() })
+            Checkbox(
+                checked = checked,
+                onCheckedChange = null,
+                colors = CheckboxDefaults.colors(checkedColor = ClashTheme.extraColors.settingsGreen),
+            )
         },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle),
-    )
+    ) {
+        Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
+
+/** What the active profile's own `tun.*-package` lists do with an app. */
+private enum class SubscriptionRoute { Bypass, Through }

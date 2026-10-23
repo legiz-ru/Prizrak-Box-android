@@ -1,5 +1,8 @@
 package com.github.kr328.clash.design.compose.screen
 
+import com.github.kr328.clash.design.compose.tv.TvProfiles
+import com.github.kr328.clash.design.compose.tv.TvProfilesActions
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -11,8 +14,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +39,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.BusyIndicator
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
 import com.github.kr328.clash.design.compose.component.AddProfileAction
 import com.github.kr328.clash.design.compose.component.AddProfileSheet
 import com.github.kr328.clash.design.compose.component.AppNavigationRail
@@ -76,13 +83,14 @@ fun ProfilesScreen(
     }
 
     val content: @Composable (Modifier) -> Unit = { contentModifier ->
-        Scaffold(
+        ExpressiveScaffold(
+            title = stringResource(R.string.profiles),
+            onBack = onBack,
             modifier = contentModifier,
-            topBar = {
-                ProfilesTopBar(
+            actions = {
+                ProfilesActions(
                     updatable = updatable,
                     allUpdating = allUpdating,
-                    onBack = onBack,
                     onUpdateAll = onUpdateAll,
                     onAdd = { showAddSheet = true },
                 )
@@ -116,9 +124,52 @@ fun ProfilesScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        if (expanded) {
+        if (isTv) {
+            // Android TV: the tabs at the top, as on Apple TV and iPad; the profiles as
+            // Apple TV's fanned deck, their actions under it. The focus opens on the Profiles
+            // tab; Down goes to the active profile's card, Up from the cards back to the tab.
+            val tabFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+            val deckEntry = remember { androidx.compose.ui.focus.FocusRequester() }
+            Column(modifier = Modifier.fillMaxSize()) {
+                // One line: the tabs in the middle, Update all and Add at the right.
+                TabletTopBar(
+                    selected = SettingsNavTarget.Profiles,
+                    onNavigate = onNavigate,
+                    clashRunning = clashRunning,
+                    onDisconnect = onToggleStatus,
+                    tabs = tvTabs(clashRunning),
+                    showDisconnect = false,
+                    selectedFocus = tabFocus,
+                    focusSelectedOnStart = true,
+                    downFocus = deckEntry,
+                    trailing = {
+                        TvProfilesActions(
+                            updatable = updatable,
+                            allUpdating = allUpdating,
+                            onUpdateAll = onUpdateAll,
+                            onAdd = { showAddSheet = true },
+                        )
+                    },
+                )
+                TvProfiles(
+                    profiles = profiles,
+                    updatingUuids = updatingUuids,
+                    onActivate = onProfileClick,
+                    onUpdate = onProfileUpdate,
+                    onAnnounce = onProfileAnnounce,
+                    onSupport = onProfileSupport,
+                    onWebPage = onProfileWebPage,
+                    onRenew = onProfileRenew,
+                    onEdit = onProfileEdit,
+                    onDelete = onProfileDelete,
+                    modifier = Modifier.weight(1f),
+                    entry = deckEntry,
+                    up = tabFocus,
+                )
+            }
+        } else if (expanded) {
             Row(modifier = Modifier.fillMaxSize()) {
                 AppNavigationRail(
                     selected = SettingsNavTarget.Profiles,
@@ -151,51 +202,29 @@ fun ProfilesScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProfilesTopBar(
+private fun ProfilesActions(
     updatable: Boolean,
     allUpdating: Boolean,
-    onBack: () -> Unit,
     onUpdateAll: () -> Unit,
     onAdd: () -> Unit,
 ) {
-    TopAppBar(
-        title = { Text(stringResource(R.string.profiles)) },
-        navigationIcon = {
-            IconButton(onClick = onBack) {
+    if (updatable) {
+        if (allUpdating) {
+            BusyIndicator(modifier = Modifier.padding(horizontal = 10.dp))
+        } else {
+            IconButton(onClick = onUpdateAll) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                    contentDescription = null,
+                    painter = painterResource(R.drawable.ic_baseline_sync),
+                    contentDescription = stringResource(R.string.update),
                 )
             }
-        },
-        actions = {
-            if (updatable) {
-                val transition = rememberInfiniteTransition(label = "updateAll")
-                val angle by transition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = if (allUpdating) 360f else 0f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Restart,
-                    ),
-                    label = "updateAllAngle",
-                )
-                IconButton(onClick = onUpdateAll) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_baseline_sync),
-                        contentDescription = stringResource(R.string.update),
-                        modifier = Modifier.rotate(angle),
-                    )
-                }
-            }
-            IconButton(onClick = onAdd) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_baseline_add),
-                    contentDescription = stringResource(R.string._new),
-                )
-            }
-        },
-    )
+        }
+    }
+    FilledTonalIconButton(onClick = onAdd) {
+        Icon(
+            painter = painterResource(R.drawable.ic_baseline_add),
+            contentDescription = stringResource(R.string._new),
+        )
+    }
 }

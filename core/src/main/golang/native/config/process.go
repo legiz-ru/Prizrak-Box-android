@@ -18,6 +18,7 @@ import (
 var processors = []processor{
 	patchExternalController, // must before patchOverride, so we only apply ExternalController in Override settings
 	patchOverride,
+	patchZashboard, // after patchOverride: Zashboard's controller is the only one
 	patchGeneral,
 	patchProfile,
 	patchDns,

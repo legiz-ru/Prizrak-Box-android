@@ -1,15 +1,11 @@
 package com.github.kr328.clash
 
-import android.content.res.Configuration
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.github.kr328.clash.core.model.Provider
 import com.github.kr328.clash.design.compose.screen.ProviderDetailScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
 import android.widget.Toast
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.util.withClash
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
@@ -29,7 +25,7 @@ class ProviderDetailActivity : BaseActivity() {
         val provider = intent.getParcelableExtra<Provider>(EXTRA_PROVIDER)!!
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val rules by rulesFlow.collectAsStateWithLifecycle()
                 val loading by loadingFlow.collectAsStateWithLifecycle()
                 val updating by updatingFlow.collectAsStateWithLifecycle()
@@ -77,21 +73,6 @@ class ProviderDetailActivity : BaseActivity() {
                     updatingFlow.value = false
                 }
             }
-        }
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
         }
     }
 }

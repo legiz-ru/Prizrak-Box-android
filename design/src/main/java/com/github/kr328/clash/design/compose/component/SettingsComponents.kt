@@ -1,36 +1,20 @@
 package com.github.kr328.clash.design.compose.component
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.github.kr328.clash.design.R
 
-/**
- * Small uppercase-style category header, matching the adns settings grouping.
- * Icons across settings stay monochrome per the design brief.
- */
+/** A group's header, in the accent, as Material 3 Expressive titles its lists. */
 @Composable
 fun SettingsCategory(
     title: String,
@@ -39,17 +23,15 @@ fun SettingsCategory(
     Text(
         text = title,
         style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 28.dp, end = 28.dp, top = 20.dp, bottom = 8.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 6.dp),
     )
 }
 
-/**
- * A single settings row: monochrome leading icon, title, optional subtitle and a
- * trailing chevron.
- */
+/** A row that opens a screen: its icon, title, a line under it, and a chevron. */
 @Composable
 fun SettingsItem(
     @DrawableRes icon: Int,
@@ -57,63 +39,21 @@ fun SettingsItem(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     showChevron: Boolean = true,
+    /** Open beside the list (a wide window): in the accent's container, as iOS marks it. */
+    selected: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val source = remember { MutableInteractionSource() }
-    val focused by source.collectIsFocusedAsState()
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .clickable(
-                role = Role.Button,
-                interactionSource = source,
-                indication = LocalIndication.current,
-                onClick = onClick,
-            )
-            .background(
-                if (focused) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                } else {
-                    androidx.compose.ui.graphics.Color.Transparent
-                },
-            )
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp),
-        )
-        Spacer(modifier = Modifier.width(20.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        if (showChevron) {
-            Spacer(modifier = Modifier.width(12.dp))
-            Icon(
-                painter = painterResource(com.github.kr328.clash.design.R.drawable.ic_baseline_chevron_right),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
+    PreferenceRow(
+        title = title,
+        summary = subtitle,
+        icon = icon,
+        modifier = modifier,
+        container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceBright,
+        onClick = onClick,
+        trailing = if (showChevron) {
+            { Icon(painterResource(R.drawable.ic_baseline_chevron_right), contentDescription = null, modifier = Modifier.size(20.dp)) }
+        } else {
+            null
+        },
+    )
 }

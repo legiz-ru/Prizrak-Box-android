@@ -14,7 +14,7 @@ import com.github.kr328.clash.service.ProfileProcessor
 import com.github.kr328.clash.service.TemplateManager
 import com.github.kr328.clash.service.model.Profile
 import com.github.kr328.clash.service.util.pendingDir
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.github.kr328.clash.design.compose.dialog.ExpressiveDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -107,7 +107,7 @@ private suspend fun Context.showFetchErrorImportDialog(issue: FetchIssue) {
 
     withContext(Dispatchers.Main) {
         suspendCancellableCoroutine<Unit> { cont ->
-            val dialog = MaterialAlertDialogBuilder(this@showFetchErrorImportDialog)
+            val dialog = ExpressiveDialog.Builder(this@showFetchErrorImportDialog)
                 .setTitle(com.github.kr328.clash.design.R.string.fetch_error_title)
                 .setMessage(fullMessage)
                 .setPositiveButton(com.github.kr328.clash.design.R.string.ok) { _, _ ->
@@ -143,7 +143,7 @@ private suspend fun Context.showHwidNotSupportedImportDialog(supportUrl: String 
     withContext(Dispatchers.Main) {
         suspendCancellableCoroutine<Unit> { cont ->
             val linkUrl = supportUrl.ifEmpty { HWID_DOCS_URL }
-            val dialog = MaterialAlertDialogBuilder(this@showHwidNotSupportedImportDialog)
+            val dialog = ExpressiveDialog.Builder(this@showHwidNotSupportedImportDialog)
                 .setTitle(com.github.kr328.clash.design.R.string.hwid_not_supported_title)
                 .setMessage(com.github.kr328.clash.design.R.string.hwid_not_supported_msg)
                 .setPositiveButton(com.github.kr328.clash.design.R.string.ok) { _, _ ->
@@ -183,7 +183,7 @@ private fun isAgeKeyRequiredImport(exception: Throwable): Boolean {
 private suspend fun Context.showAgeKeyRequiredImportDialog(uuid: UUID) {
     withContext(Dispatchers.Main) {
         suspendCancellableCoroutine<Unit> { cont ->
-            val dialog = MaterialAlertDialogBuilder(this@showAgeKeyRequiredImportDialog)
+            val dialog = ExpressiveDialog.Builder(this@showAgeKeyRequiredImportDialog)
                 .setTitle(com.github.kr328.clash.design.R.string.age_key_required_title)
                 .setMessage(com.github.kr328.clash.design.R.string.age_key_required_msg)
                 .setPositiveButton(com.github.kr328.clash.design.R.string.age_key_required_set) { _, _ ->
@@ -203,7 +203,7 @@ private suspend fun Context.showAgeKeyRequiredImportDialog(uuid: UUID) {
 private suspend fun Context.showHwidMaxDevicesImportDialog(supportUrl: String) {
     withContext(Dispatchers.Main) {
         suspendCancellableCoroutine<Unit> { cont ->
-            val builder = MaterialAlertDialogBuilder(this@showHwidMaxDevicesImportDialog)
+            val builder = ExpressiveDialog.Builder(this@showHwidMaxDevicesImportDialog)
                 .setTitle(com.github.kr328.clash.design.R.string.hwid_max_devices_title)
                 .setMessage(com.github.kr328.clash.design.R.string.hwid_max_devices_msg)
                 .setPositiveButton(com.github.kr328.clash.design.R.string.ok) { _, _ ->

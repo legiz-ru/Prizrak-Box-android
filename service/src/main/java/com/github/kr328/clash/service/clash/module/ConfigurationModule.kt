@@ -1,6 +1,7 @@
 package com.github.kr328.clash.service.clash.module
 
 import android.app.Service
+import android.content.Intent
 import com.github.kr328.clash.common.constants.Intents
 import com.github.kr328.clash.common.log.Log
 import com.github.kr328.clash.core.Clash
@@ -9,6 +10,7 @@ import com.github.kr328.clash.service.data.ImportedDao
 import com.github.kr328.clash.service.data.SelectionDao
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.service.util.importedDir
+import com.github.kr328.clash.service.util.sendBroadcastSelf
 import com.github.kr328.clash.service.util.sendProfileLoaded
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
@@ -43,6 +45,15 @@ class ConfigurationModule(service: Service) : Module<ConfigurationModule.LoadExc
                 }
             }
 
+            // The running profile was deleted: the tunnel stops, as on iOS —
+            // the way the user's own Stop does, not as a load error, and not
+            // switching to the profile that took its place.
+            if (changed != null && changed == loaded && !ImportedDao().exists(changed)) {
+                Log.d("Running profile deleted, stopping")
+                service.sendBroadcastSelf(Intent(Intents.ACTION_CLASH_REQUEST_STOP))
+                continue
+            }
+
             try {
                 val current = store.activeProfile
                     ?: throw NullPointerException("No profile selected")
@@ -60,6 +71,17 @@ class ConfigurationModule(service: Service) : Module<ConfigurationModule.LoadExc
                 // Provide the age secret key (if any) so the core can decrypt an
                 // age-encrypted config on load; empty clears any previously set key.
                 Clash.setAgeSecretKeys(active.ageSecretKey)
+
+                // Debug → Zashboard: its controller, the only one; off, the
+                // profile's and Override's own again.
+                if (store.zashboardEnabled) {
+                    Clash.setZashboardController(
+                        "${ServiceStore.ZASHBOARD_HOST}:${ServiceStore.ZASHBOARD_PORT}",
+                        store.makeZashboardSecretIfNeeded(),
+                    )
+                } else {
+                    Clash.setZashboardController("", "")
+                }
 
                 // Per-app access control is enforced at the VpnService layer
                 // (TunService addAllowed/DisallowedApplication); the core's own tun

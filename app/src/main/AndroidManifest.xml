@@ -11,6 +11,8 @@
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Settings → Service → Unrestricted Battery: the system's own request dialog. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -165,17 +167,39 @@
             android:name=".SettingsActivity"
             android:configChanges="uiMode"
             android:exported="false"
-            android:label="@string/settings" />
+            android:label="@string/settings"
+            android:theme="@style/SettingsTheme" />
+        <activity
+            android:name=".ServiceSettingsActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/service_settings" />
         <activity
             android:name=".NetworkSettingsActivity"
             android:configChanges="uiMode"
             android:exported="false"
             android:label="@string/network" />
         <activity
-            android:name=".AppSettingsActivity"
+            android:name=".zashboard.ZashboardActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false"
+            android:label="Zashboard"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".PartialResetActivity"
             android:configChanges="uiMode"
             android:exported="false"
-            android:label="@string/app" />
+            android:label="@string/partial_reset" />
+        <activity
+            android:name=".DebugActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/debug" />
+        <activity
+            android:name=".VisualSettingsActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/visual" />
         <activity
             android:name=".NotificationSettingsActivity"
             android:configChanges="uiMode"

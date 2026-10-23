@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.BusyIndicator
 import com.github.kr328.clash.design.compose.component.PreferenceRow
 import com.github.kr328.clash.design.compose.component.PreferenceScaffold
 import com.github.kr328.clash.design.compose.component.SettingsItem
@@ -45,7 +45,6 @@ fun PropertiesScreen(
     onEditInterval: () -> Unit,
     onEditAgeKey: () -> Unit,
     onShowSubscriptionAlertInfo: () -> Unit,
-    onRenewSubscription: () -> Unit,
     onBrowseFiles: () -> Unit,
     onSelectTemplate: () -> Unit,
     onAddProxyLinks: () -> Unit,
@@ -88,12 +87,7 @@ fun PropertiesScreen(
                 }
             }
             if (processing) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .size(24.dp),
-                    strokeWidth = 2.dp,
-                )
+                BusyIndicator(modifier = Modifier.padding(horizontal = 10.dp))
             } else {
                 IconButton(onClick = onSave) {
                     Icon(
@@ -104,16 +98,6 @@ fun PropertiesScreen(
             }
         },
     ) {
-        if (profile.renewUrl.isNotEmpty()) {
-            item {
-                PreferenceRow(
-                    title = stringResource(R.string.renew_subscription),
-                    icon = R.drawable.ic_mdi_credit_card_outline,
-                    onClick = onRenewSubscription,
-                )
-            }
-        }
-
         item {
             PreferenceRow(
                 title = stringResource(R.string.name),
@@ -223,36 +207,17 @@ private fun ProxyLinkRow(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .clickable(onClick = onClick)
-            .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_outline_inbox),
-            contentDescription = null,
-            tint = scheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp),
-        )
-        Spacer(modifier = Modifier.width(20.dp))
-        Text(
-            text = proxyLinkAlias(link),
-            style = MaterialTheme.typography.bodyMedium,
-            color = scheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        IconButton(onClick = onDelete) {
-            Icon(
-                painter = painterResource(R.drawable.ic_outline_delete),
-                contentDescription = stringResource(R.string.delete),
-                tint = scheme.onSurfaceVariant,
-            )
-        }
-    }
+    PreferenceRow(
+        title = proxyLinkAlias(link),
+        icon = R.drawable.ic_outline_inbox,
+        onClick = onClick,
+        trailing = {
+            IconButton(onClick = onDelete) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_outline_delete),
+                    contentDescription = stringResource(R.string.delete),
+                )
+            }
+        },
+    )
 }

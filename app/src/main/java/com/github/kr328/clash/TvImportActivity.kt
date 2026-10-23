@@ -1,6 +1,5 @@
 package com.github.kr328.clash
 
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
@@ -8,9 +7,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.github.kr328.clash.common.util.intent
 import com.github.kr328.clash.common.util.setUUID
 import com.github.kr328.clash.design.compose.screen.TvImportScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.tv.TvImportServer
 import com.github.kr328.clash.util.generateQrCode
 import com.github.kr328.clash.util.importProfileFromUrl
@@ -38,7 +34,7 @@ class TvImportActivity : BaseActivity() {
 
     override suspend fun main() {
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val qr by qrFlow.collectAsStateWithLifecycle()
                 val ip by ipFlow.collectAsStateWithLifecycle()
                 val port by portFlow.collectAsStateWithLifecycle()
@@ -152,19 +148,4 @@ class TvImportActivity : BaseActivity() {
             ?.filterNot { it.isLoopbackAddress }
             ?.firstOrNull()
             ?.hostAddress
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
-    }
 }

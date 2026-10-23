@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="BootstrapTheme" parent="AppThemeLight" />
+
+    <!-- Settings: the same, see-through on Android TV (values-television). -->
+    <style name="SettingsTheme" parent="BootstrapTheme" />
 </resources>

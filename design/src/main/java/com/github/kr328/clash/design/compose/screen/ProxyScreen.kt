@@ -1,5 +1,14 @@
 package com.github.kr328.clash.design.compose.screen
 
+import com.github.kr328.clash.design.compose.dialog.ExpressiveAlert
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -41,6 +49,10 @@ import com.github.kr328.clash.core.model.ProxyGroup
 import com.github.kr328.clash.core.model.ProxySort
 import com.github.kr328.clash.core.model.TunnelState
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.BusyIndicator
+import com.github.kr328.clash.design.compose.component.EmptyState
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.PreferenceList
 import com.github.kr328.clash.design.compose.component.ProxyRow
 import com.github.kr328.clash.design.compose.component.SingleChoiceDialog
 import com.github.kr328.clash.design.compose.component.rowDelayState
@@ -79,68 +91,55 @@ fun ProxyScreen(
         mutableStateOf(groupNames.getOrElse(initialPage) { "" })
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                ProxyTopBar(
-                    currentGroup = currentGroup,
-                    hasGroups = groupNames.isNotEmpty(),
-                    testing = currentGroup in testingGroups,
-                    mode = mode,
-                    sort = sort,
-                    excludeNotSelectable = excludeNotSelectable,
-                    onBack = onBack,
-                    onUrlTest = onUrlTest,
-                    onSetSort = onSetSort,
-                    onSetMode = onSetMode,
-                    onToggleExclude = onToggleExclude,
+    ExpressiveScaffold(
+        title = stringResource(R.string.proxy),
+        onBack = onBack,
+        actions = {
+            ProxyActions(
+                currentGroup = currentGroup,
+                hasGroups = groupNames.isNotEmpty(),
+                testing = currentGroup in testingGroups,
+                mode = mode,
+                sort = sort,
+                excludeNotSelectable = excludeNotSelectable,
+                onUrlTest = onUrlTest,
+                onSetSort = onSetSort,
+                onSetMode = onSetMode,
+                onToggleExclude = onToggleExclude,
+            )
+        },
+    ) { inner ->
+        if (groupNames.isEmpty()) {
+            EmptyState(stringResource(R.string.proxy_empty_tips), inner)
+        } else {
+            Box(modifier = Modifier.padding(top = inner.calculateTopPadding())) {
+                ProxyPager(
+                    groupNames = groupNames,
+                    groupMap = groupMap,
+                    useDots = useDots,
+                    testingProxies = testingProxies,
+                    initialPage = initialPage,
+                    bottomPadding = inner.calculateBottomPadding(),
+                    onSelect = onSelect,
+                    onTestProxy = onTestProxy,
+                    onVisibleGroupChanged = {
+                        currentGroup = it
+                        onGroupChanged(it)
+                    },
                 )
-            },
-        ) { inner ->
-            if (groupNames.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(inner),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.proxy_empty_tips),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                Box(modifier = Modifier.padding(inner)) {
-                    ProxyPager(
-                        groupNames = groupNames,
-                        groupMap = groupMap,
-                        useDots = useDots,
-                        testingProxies = testingProxies,
-                        initialPage = initialPage,
-                        onSelect = onSelect,
-                        onTestProxy = onTestProxy,
-                        onVisibleGroupChanged = {
-                            currentGroup = it
-                            onGroupChanged(it)
-                        },
-                    )
-                }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProxyTopBar(
+private fun ProxyActions(
     currentGroup: String,
     hasGroups: Boolean,
     testing: Boolean,
     mode: TunnelState.Mode?,
     sort: ProxySort,
     excludeNotSelectable: Boolean,
-    onBack: () -> Unit,
     onUrlTest: (String) -> Unit,
     onSetSort: (ProxySort) -> Unit,
     onSetMode: (TunnelState.Mode?) -> Unit,
@@ -150,25 +149,9 @@ private fun ProxyTopBar(
     var showSort by remember { mutableStateOf(false) }
     var showMode by remember { mutableStateOf(false) }
 
-    TopAppBar(
-        title = { Text(stringResource(R.string.proxy)) },
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                    contentDescription = null,
-                )
-            }
-        },
-        actions = {
             if (hasGroups) {
                 if (testing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp)
-                            .size(24.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    BusyIndicator(modifier = Modifier.padding(horizontal = 10.dp))
                 } else {
                     IconButton(onClick = { if (currentGroup.isNotEmpty()) onUrlTest(currentGroup) }) {
                         Icon(
@@ -183,7 +166,8 @@ private fun ProxyTopBar(
                         contentDescription = null,
                     )
                 }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                Box {
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = MaterialTheme.shapes.large) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.sort)) },
                         onClick = { menuOpen = false; showSort = true },
@@ -203,9 +187,8 @@ private fun ProxyTopBar(
                         },
                     )
                 }
+                }
             }
-        },
-    )
 
     if (showSort) {
         SingleChoiceDialog(
@@ -236,7 +219,7 @@ private fun ProxyTopBar(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ProxyPager(
     groupNames: List<String>,
@@ -244,6 +227,7 @@ private fun ProxyPager(
     useDots: Boolean,
     testingProxies: Set<String>,
     initialPage: Int,
+    bottomPadding: androidx.compose.ui.unit.Dp,
     onSelect: (String, String) -> Unit,
     onTestProxy: (String, String) -> Unit,
     onVisibleGroupChanged: (String) -> Unit,
@@ -257,16 +241,19 @@ private fun ProxyPager(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        ScrollableTabRow(
-            selectedTabIndex = pagerState.currentPage.coerceIn(0, (groupNames.size - 1).coerceAtLeast(0)),
-            edgePadding = 12.dp,
+        // The groups as toggle buttons in a row that scrolls: the open one filled.
+        val tabs = rememberLazyListState()
+        LaunchedEffect(pagerState.currentPage) { tabs.animateScrollToItem(pagerState.currentPage) }
+        LazyRow(
+            state = tabs,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         ) {
-            groupNames.forEachIndexed { index, name ->
-                Tab(
-                    selected = pagerState.currentPage == index,
-                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                    text = { Text(name, maxLines = 1) },
-                )
+            itemsIndexed(groupNames) { index, name ->
+                ToggleButton(
+                    checked = pagerState.currentPage == index,
+                    onCheckedChange = { scope.launch { pagerState.animateScrollToPage(index) } },
+                ) { Text(name, maxLines = 1) }
             }
         }
 
@@ -278,36 +265,34 @@ private fun ProxyPager(
             val group = groupMap[name]
             if (group == null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
+                    BusyIndicator(size = 48.dp)
                 }
             } else {
                 val isSelector = group.type == "Selector"
                 val isSmart = group.type == "Smart"
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp),
+                PreferenceList(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = bottomPadding),
                 ) {
-                    items(items = group.proxies, key = { it.name }) { proxy ->
-                        Box(modifier = Modifier.animateItem()) {
-                            ProxyRow(
-                                proxy = proxy,
-                                selected = proxy.name == group.now,
-                                delayState = rowDelayState(
-                                    groupMap,
-                                    proxy,
-                                    proxy.name in testingProxies,
-                                ),
-                                useDots = useDots,
-                                enabled = true,
-                                parentIsSmart = isSmart,
-                                groupMap = groupMap,
-                                onClick = {
-                                    if (isSelector) onSelect(name, proxy.name) else showAuto = true
-                                },
-                                onTestDelay = { onTestProxy(name, proxy.name) },
-                            )
-                        }
+                    items(group.proxies, key = { it.name }) { proxy ->
+                        ProxyRow(
+                            proxy = proxy,
+                            selected = proxy.name == group.now,
+                            delayState = rowDelayState(
+                                groupMap,
+                                proxy,
+                                proxy.name in testingProxies,
+                            ),
+                            useDots = useDots,
+                            enabled = true,
+                            parentIsSmart = isSmart,
+                            groupMap = groupMap,
+                            onClick = {
+                                if (isSelector) onSelect(name, proxy.name) else showAuto = true
+                            },
+                            onTestDelay = { onTestProxy(name, proxy.name) },
+                            segmented = true,
+                        )
                     }
                 }
             }
@@ -315,14 +300,11 @@ private fun ProxyPager(
     }
 
     if (showAuto) {
-        AlertDialog(
+        ExpressiveAlert(
             onDismissRequest = { showAuto = false },
-            confirmButton = {
-                TextButton(onClick = { showAuto = false }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            text = { Text(stringResource(R.string.proxy_group_auto_no_select)) },
+            confirmLabel = stringResource(android.R.string.ok),
+            onConfirm = { showAuto = false },
+            text = stringResource(R.string.proxy_group_auto_no_select),
         )
     }
 }

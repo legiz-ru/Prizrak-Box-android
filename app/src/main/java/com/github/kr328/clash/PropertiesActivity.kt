@@ -2,6 +2,7 @@ package com.github.kr328.clash
 
 import android.content.res.Configuration
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -12,13 +13,10 @@ import com.github.kr328.clash.core.model.FetchStatus
 import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.component.UrlQrDialog
 import com.github.kr328.clash.design.compose.screen.PropertiesScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
 import com.github.kr328.clash.design.dialog.ModelProgressBarConfigure
 import com.github.kr328.clash.design.dialog.requestModelTextInput
 import com.github.kr328.clash.design.dialog.requestMultilineTextInput
 import com.github.kr328.clash.design.dialog.withModelProgressBar
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.design.util.ValidatorAgeSecretKey
 import com.github.kr328.clash.design.util.ValidatorAutoUpdateInterval
 import com.github.kr328.clash.design.util.ValidatorHttpUrl
@@ -31,9 +29,10 @@ import com.github.kr328.clash.service.util.pendingDir
 import com.github.kr328.clash.util.GetContentCompat
 import com.github.kr328.clash.util.UrlOpener
 import com.github.kr328.clash.util.withProfile
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.github.kr328.clash.design.compose.dialog.ExpressiveDialog
 import io.github.g00fy2.quickie.QRResult
-import io.github.g00fy2.quickie.ScanQRCode
+import io.github.g00fy2.quickie.ScanCustomCode
+import com.github.kr328.clash.util.qrScannerConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,7 +62,7 @@ class PropertiesActivity : BaseActivity() {
 
     private val urlOpener by lazy { UrlOpener(this) }
 
-    private val qrScanLauncher = registerForActivityResult(ScanQRCode()) { result ->
+    private val qrScanLauncher = registerForActivityResult(ScanCustomCode()) { result ->
         when (result) {
             is QRResult.QRSuccess -> {
                 val text = result.content.rawValue?.trim() ?: return@registerForActivityResult
@@ -88,7 +87,7 @@ class PropertiesActivity : BaseActivity() {
         }
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val current by profileFlow.collectAsStateWithLifecycle()
                 val proxyLinks by proxyLinksFlow.collectAsStateWithLifecycle()
                 val processing by processingFlow.collectAsStateWithLifecycle()
@@ -114,7 +113,6 @@ class PropertiesActivity : BaseActivity() {
                         onEditInterval = { launch { inputInterval() } },
                         onEditAgeKey = { launch { inputAgeKey() } },
                         onShowSubscriptionAlertInfo = { showSubscriptionAlertInfoDialog(p) },
-                        onRenewSubscription = { urlOpener.open(p.renewUrl, getString(R.string.renew_subscription)) },
                         onBrowseFiles = { startActivity(FilesActivity::class.intent.setUUID(uuid)) },
                         onSelectTemplate = { launch { selectAndApplyTemplate() } },
                         onAddProxyLinks = { launch { addProxyLinks() } },
@@ -146,12 +144,17 @@ class PropertiesActivity : BaseActivity() {
         }
     }
 
-    override fun onBackPressed() {
-        if (profileFlow.value == null) return super.onBackPressed()
-        launch {
-            if (!processingFlow.value) {
-                if (original == profile || requestExitWithoutSaving())
-                    finish()
+    // Back (the gesture, the key or the bar's arrow): unsaved changes ask
+    // first. Through the dispatcher: from API 36 the system no longer calls
+    // onBackPressed().
+    init {
+        onBackPressedDispatcher.addCallback(this) {
+            if (profileFlow.value == null) return@addCallback finish()
+            launch {
+                if (!processingFlow.value) {
+                    if (original == profile || requestExitWithoutSaving())
+                        finish()
+                }
             }
         }
     }
@@ -237,7 +240,7 @@ class PropertiesActivity : BaseActivity() {
                     getString(R.string.paste_links),
                     getString(R.string.scan_qr_code),
                 )
-                val dlg = MaterialAlertDialogBuilder(this@PropertiesActivity)
+                val dlg = ExpressiveDialog.Builder(this@PropertiesActivity)
                     .setTitle(R.string.add_proxy_links)
                     .setItems(options) { _, which -> if (!cont.isCompleted) cont.resume(which) }
                     .setNegativeButton(R.string.cancel) { _, _ -> if (!cont.isCompleted) cont.resume(-1) }
@@ -248,7 +251,7 @@ class PropertiesActivity : BaseActivity() {
         }
         when (choice) {
             0 -> pasteProxyLinks()
-            1 -> qrScanLauncher.launch(null)
+            1 -> qrScanLauncher.launch(qrScannerConfig)
         }
     }
 
@@ -291,11 +294,11 @@ class PropertiesActivity : BaseActivity() {
     private suspend fun requestExitWithoutSaving(): Boolean {
         return withContext(Dispatchers.Main) {
             suspendCancellableCoroutine { ctx ->
-                val dialog = MaterialAlertDialogBuilder(this@PropertiesActivity)
+                val dialog = ExpressiveDialog.Builder(this@PropertiesActivity)
                     .setTitle(R.string.exit_without_save)
                     .setMessage(R.string.exit_without_save_warning)
                     .setCancelable(true)
-                    .setPositiveButton(R.string.ok) { _, _ -> ctx.resume(true) }
+                    .setDestructiveButton(R.string.ok) { _, _ -> ctx.resume(true) }
                     .setNegativeButton(R.string.cancel) { _, _ -> }
                     .setOnDismissListener { if (!ctx.isCompleted) ctx.resume(false) }
                     .show()
@@ -370,7 +373,7 @@ class PropertiesActivity : BaseActivity() {
         val currentIndex = templateIds.indexOfFirst { it == currentTemplateId }.coerceAtLeast(0)
 
         val selectedIndex = suspendCancellableCoroutine<Int?> { continuation ->
-            val dialog = MaterialAlertDialogBuilder(this)
+            val dialog = ExpressiveDialog.Builder(this)
                 .setTitle(R.string.select_template)
                 .setSingleChoiceItems(displayNames.toTypedArray(), currentIndex) { dlg, which ->
                     dlg.dismiss()
@@ -484,7 +487,7 @@ class PropertiesActivity : BaseActivity() {
     private suspend fun showAgeKeyRequiredDialog() {
         withContext(Dispatchers.Main) {
             suspendCancellableCoroutine<Unit> { cont ->
-                val dialog = MaterialAlertDialogBuilder(this@PropertiesActivity)
+                val dialog = ExpressiveDialog.Builder(this@PropertiesActivity)
                     .setTitle(R.string.age_key_required_title)
                     .setMessage(R.string.age_key_required_msg)
                     .setPositiveButton(R.string.ok) { _, _ -> if (cont.isActive) cont.resume(Unit) }
@@ -521,7 +524,7 @@ class PropertiesActivity : BaseActivity() {
             lines += getString(R.string.subscription_alert_info_disabled_locally)
         }
 
-        MaterialAlertDialogBuilder(this)
+        ExpressiveDialog.Builder(this)
             .setTitle(R.string.subscription_alert_info_title)
             .setMessage(lines.joinToString("\n\n"))
             .setPositiveButton(R.string.ok, null)
@@ -556,7 +559,7 @@ class PropertiesActivity : BaseActivity() {
         withContext(Dispatchers.Main) {
             suspendCancellableCoroutine { cont ->
                 val linkUrl = supportUrl.ifEmpty { HWID_DOCS_URL }
-                val dialog = MaterialAlertDialogBuilder(this@PropertiesActivity)
+                val dialog = ExpressiveDialog.Builder(this@PropertiesActivity)
                     .setTitle(R.string.hwid_not_supported_title)
                     .setMessage(R.string.hwid_not_supported_msg)
                     .setPositiveButton(R.string.ok) { _, _ -> cont.resume(Unit) }
@@ -646,7 +649,7 @@ class PropertiesActivity : BaseActivity() {
 
         withContext(Dispatchers.Main) {
             suspendCancellableCoroutine<Unit> { cont ->
-                val dialog = MaterialAlertDialogBuilder(this@PropertiesActivity)
+                val dialog = ExpressiveDialog.Builder(this@PropertiesActivity)
                     .setTitle(R.string.fetch_error_title)
                     .setMessage(fullMessage)
                     .setPositiveButton(R.string.ok) { _, _ -> cont.resume(Unit) }
@@ -661,7 +664,7 @@ class PropertiesActivity : BaseActivity() {
     private suspend fun showHwidMaxDevicesDialog(supportUrl: String) {
         withContext(Dispatchers.Main) {
             suspendCancellableCoroutine { cont ->
-                val builder = MaterialAlertDialogBuilder(this@PropertiesActivity)
+                val builder = ExpressiveDialog.Builder(this@PropertiesActivity)
                     .setTitle(R.string.hwid_max_devices_title)
                     .setMessage(R.string.hwid_max_devices_msg)
                     .setPositiveButton(R.string.ok) { _, _ -> cont.resume(Unit) }
@@ -703,21 +706,6 @@ class PropertiesActivity : BaseActivity() {
                 max = status.max
                 progress = status.progress
             }
-        }
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
         }
     }
 }

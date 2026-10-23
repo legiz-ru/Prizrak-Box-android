@@ -1,6 +1,5 @@
 package com.github.kr328.clash
 
-import android.content.res.Configuration
 import android.graphics.drawable.Drawable
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
@@ -9,9 +8,6 @@ import com.github.kr328.clash.core.model.Connection
 import com.github.kr328.clash.core.model.ConnectionSnapshot
 import com.github.kr328.clash.design.compose.component.ConnectionDetailSheet
 import com.github.kr328.clash.design.compose.screen.AppConnectionsScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.util.withClash
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -56,7 +52,7 @@ class AppConnectionsActivity : BaseActivity() {
         val isLive = closedJson == null
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val connections by connectionsFlow.collectAsStateWithLifecycle()
                 val detail by detailFlow.collectAsStateWithLifecycle()
                 AppConnectionsScreen(
@@ -115,21 +111,6 @@ class AppConnectionsActivity : BaseActivity() {
     private fun closeConn(connection: Connection) {
         launch {
             try { withClash { closeConnection(connection.id) } } catch (_: Exception) {}
-        }
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
         }
     }
 }

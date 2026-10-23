@@ -51,7 +51,7 @@ sealed interface NotificationPermissionStatus {
  */
 @Composable
 fun NotificationSettingsScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     permissionStatus: NotificationPermissionStatus,
     onRequestPermission: () -> Unit,
     onOpenSystemNotificationSettings: () -> Unit,
@@ -76,7 +76,7 @@ fun NotificationSettingsScreen(
 
     PreferenceScaffold(title = stringResource(R.string.notifications), onBack = onBack) {
         if (permissionStatus != NotificationPermissionStatus.Granted) {
-            item {
+            free("permission") {
                 PermissionNotice(
                     status = permissionStatus,
                     onRequestPermission = onRequestPermission,
@@ -85,7 +85,7 @@ fun NotificationSettingsScreen(
             }
         }
 
-        item { SettingsCategory(stringResource(R.string.notifications_tunnel_status)) }
+        category(R.string.notifications_tunnel_status)
         item {
             SwitchPreference(
                 title = stringResource(R.string.show_traffic),
@@ -96,16 +96,9 @@ fun NotificationSettingsScreen(
                 onCheckedChange = onDynamicNotification,
             )
         }
-        item {
-            Text(
-                text = stringResource(R.string.notifications_tunnel_status_locked),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
-            )
-        }
+        footnote(R.string.notifications_tunnel_status_locked)
 
-        item { SettingsCategory(stringResource(R.string.notifications_subscription_updates)) }
+        category(R.string.notifications_subscription_updates)
         item {
             SwitchPreference(
                 title = stringResource(R.string.show_update_progress),
@@ -141,16 +134,9 @@ fun NotificationSettingsScreen(
                 onClick = onOpenUpdaterServiceChannelSettings,
             )
         }
-        item {
-            Text(
-                text = stringResource(R.string.notifications_updater_service_locked),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
-            )
-        }
+        footnote(R.string.notifications_updater_service_locked)
 
-        item { SettingsCategory(stringResource(R.string.notifications_subscription_alerts)) }
+        category(R.string.notifications_subscription_alerts)
         item {
             SwitchPreference(
                 title = stringResource(R.string.notify_subscription_alerts),
@@ -162,14 +148,7 @@ fun NotificationSettingsScreen(
                 onOpenChannelSettings = onOpenSubscriptionAlertsChannelSettings,
             )
         }
-        item {
-            Text(
-                text = stringResource(R.string.notifications_subscription_alerts_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp),
-            )
-        }
+        footnote(R.string.notifications_subscription_alerts_hint)
     }
 }
 
@@ -193,13 +172,13 @@ private fun PermissionNotice(
     }
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(vertical = 8.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row {

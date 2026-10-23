@@ -1,6 +1,5 @@
 package com.github.kr328.clash
 
-import android.content.res.Configuration
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
@@ -12,10 +11,8 @@ import com.github.kr328.clash.core.model.ProxySort
 import com.github.kr328.clash.core.model.TunnelState
 import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.screen.ProxyScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.util.withClash
+import com.github.kr328.clash.util.testGroupLatency
 import com.github.kr328.clash.util.withProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
@@ -56,7 +53,7 @@ class ProxyActivity : BaseActivity() {
         }
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val groupMap by groupMapFlow.collectAsStateWithLifecycle()
                 val testing by testingFlow.collectAsStateWithLifecycle()
                 val testingProxies by testingProxiesFlow.collectAsStateWithLifecycle()
@@ -121,18 +118,16 @@ class ProxyActivity : BaseActivity() {
 
     private fun urlTestGroup(group: String) {
         launch {
-            val members = groupMapFlow.value[group]?.proxies?.map { it.name }?.toSet().orEmpty()
-
+            // Each node's result as soon as it is in (testGroupLatency).
             testingFlow.value = testingFlow.value + group
-            testingProxiesFlow.value = testingProxiesFlow.value + members
             try {
-                withClash { healthCheck(group) }
-                val refreshed = reloadLock.withPermit {
-                    withClash { queryProxyGroup(group, proxySort) }
+                testGroupLatency(group, groupMapFlow.value[group], testingProxiesFlow) {
+                    val refreshed = reloadLock.withPermit {
+                        withClash { queryProxyGroup(group, proxySort) }
+                    }
+                    groupMapFlow.value = groupMapFlow.value.toMutableMap().apply { put(group, refreshed) }
                 }
-                groupMapFlow.value = groupMapFlow.value.toMutableMap().apply { put(group, refreshed) }
             } finally {
-                testingProxiesFlow.value = testingProxiesFlow.value - members
                 testingFlow.value = testingFlow.value - group
             }
         }
@@ -183,20 +178,5 @@ class ProxyActivity : BaseActivity() {
     private fun relaunch() {
         startActivity(ProxyActivity::class.intent)
         finish()
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
     }
 }

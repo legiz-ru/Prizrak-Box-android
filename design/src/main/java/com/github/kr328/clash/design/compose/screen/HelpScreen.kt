@@ -1,10 +1,10 @@
 package com.github.kr328.clash.design.compose.screen
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,28 +14,28 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.PreferenceCard
 import com.github.kr328.clash.design.compose.component.PreferenceRow
 import com.github.kr328.clash.design.compose.component.PreferenceScaffold
-import com.github.kr328.clash.design.compose.component.SettingsCategory
+import com.github.kr328.clash.design.compose.component.ValuePreference
 
 private const val URL_CHANGELOG = "https://github.com/legiz-ru/Prizrak-Box/releases"
 private const val URL_GITHUB = "https://github.com/legiz-ru"
@@ -43,204 +43,172 @@ private const val URL_TELEGRAM = "https://t.me/legiz_trashbag"
 private const val URL_LICENSE = "https://github.com/legiz-ru/Prizrak-Box/blob/main/LICENSE"
 
 /**
- * About screen (June-inspired). A hero header with the app logo, name and
- * version, quick update/changelog actions, a developer card, the upstream
- * source links and the license.
+ * About, laid out as on iOS: the app's icon and name, version (ten taps in
+ * a row open Debug), build and core; on Android also Check for Updates and
+ * the Changelog; the developer in one row with GitHub's mark and Telegram's
+ * plane; documentation, sources, license.
  */
 @Composable
 fun HelpScreen(
+    appIcon: ImageBitmap?,
     appVersion: String,
+    appBuild: String,
     coreVersion: String,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onCheckUpdate: () -> Unit,
     onOpenLink: (String) -> Unit,
+    onDebug: () -> Unit,
+    /** The bundled dashboard's release, while Debug → Zashboard is on. */
+    zashboardVersion: String? = null,
 ) {
-    PreferenceScaffold(title = stringResource(R.string.about), onBack = onBack) {
-        item { Hero(appVersion = appVersion, coreVersion = coreVersion) }
-        item {
-            ActionButtons(
-                onCheckUpdate = onCheckUpdate,
-                onChangelog = { onOpenLink(URL_CHANGELOG) },
-            )
+    // Ten taps on the version open Debug; a pause of over two seconds starts the count again.
+    var taps by remember { mutableIntStateOf(0) }
+    var lastTap by remember { mutableLongStateOf(0L) }
+    val onVersionTap = {
+        val now = System.currentTimeMillis()
+        taps = if (now - lastTap > 2000) 1 else taps + 1
+        lastTap = now
+        if (taps >= 10) {
+            taps = 0
+            onDebug()
+        }
+    }
+
+    PreferenceScaffold(title = stringResource(R.string.about_the_app), onBack = onBack) {
+        free("header") { Header(appIcon) }
+
+        item { DetailRow(R.drawable.ic_prizrak_ghost, stringResource(R.string.about_version), appVersion, onVersionTap) }
+        item { DetailRow(R.drawable.ic_baseline_work, stringResource(R.string.about_build), appBuild) }
+        item { DetailRow(R.drawable.ic_baseline_meta, stringResource(R.string.core_version), coreVersion) }
+        if (!zashboardVersion.isNullOrEmpty()) {
+            item { DetailRow(R.drawable.ic_zashboard, "Zashboard", "v$zashboardVersion") }
         }
 
-        item { SettingsCategory(stringResource(R.string.about_developer)) }
-        item {
-            DeveloperCard(
-                onGithub = { onOpenLink(URL_GITHUB) },
-                onTelegram = { onOpenLink(URL_TELEGRAM) },
-            )
-        }
+        gap()
+        item { ActionRow(R.drawable.ic_mdi_update, R.string.check_for_updates, onCheckUpdate) }
+        item { ActionRow(R.drawable.ic_baseline_assignment, R.string.about_changelog) { onOpenLink(URL_CHANGELOG) } }
 
-        item { SettingsCategory(stringResource(R.string.document)) }
-        item { LinkRow(R.string.clash_meta_wiki, R.string.clash_meta_wiki_url, onOpenLink) }
+        category(R.string.about_developer)
+        item { Developer(onOpenLink) }
+
+        category(R.string.about_documentation)
+        item { LinkRow(stringResource(R.string.clash_meta_wiki), stringResource(R.string.clash_meta_wiki_url), onOpenLink) }
         // The URL is a localized resource: the Russian docs live under /ru/,
         // everyone else lands on the root.
-        item { LinkRow(R.string.app_documentation, R.string.app_documentation_url, onOpenLink) }
+        item { LinkRow(stringResource(R.string.app_documentation), stringResource(R.string.app_documentation_url), onOpenLink) }
 
-        item { SettingsCategory(stringResource(R.string.sources)) }
-        item { LinkRow(R.string.clash_meta_core, R.string.clash_meta_core_url, onOpenLink) }
-        item { LinkRow(R.string.clash_meta_for_android, R.string.meta_github_url, onOpenLink) }
-        item { LinkRow(R.string.moshen_core, R.string.moshen_core_url, onOpenLink) }
-        item { LinkRow(R.string.mihomo_smart_core, R.string.mihomo_smart_core_url, onOpenLink) }
-        item { LinkRow(R.string.moshen_fork_core, R.string.moshen_fork_core_url, onOpenLink) }
-        item { LinkRow(R.string.cmfa_origin, R.string.cmfa_origin_url, onOpenLink) }
+        category(R.string.sources)
+        item { LinkRow(stringResource(R.string.clash_meta_core), stringResource(R.string.clash_meta_core_url), onOpenLink) }
+        item { LinkRow(stringResource(R.string.clash_meta_for_android), stringResource(R.string.meta_github_url), onOpenLink) }
+        item { LinkRow(stringResource(R.string.moshen_core), stringResource(R.string.moshen_core_url), onOpenLink) }
+        item { LinkRow(stringResource(R.string.mihomo_smart_core), stringResource(R.string.mihomo_smart_core_url), onOpenLink) }
+        item { LinkRow(stringResource(R.string.moshen_fork_core), stringResource(R.string.moshen_fork_core_url), onOpenLink) }
+        item { LinkRow(stringResource(R.string.cmfa_origin), stringResource(R.string.cmfa_origin_url), onOpenLink) }
+        item { LinkRow("Zashboard (MIT)", "https://github.com/Zephyruso/zashboard", onOpenLink) }
 
-        item { SettingsCategory(stringResource(R.string.about_license)) }
-        item {
-            PreferenceRow(
-                title = stringResource(R.string.about_license),
-                summary = "GPL-3.0",
-                onClick = { onOpenLink(URL_LICENSE) },
-            )
-        }
+        category(R.string.about_license)
+        item { LinkRow("GPL-3.0", URL_LICENSE, onOpenLink) }
     }
 }
 
 @Composable
-private fun Hero(appVersion: String, coreVersion: String) {
-    val scheme = MaterialTheme.colorScheme
+private fun Header(appIcon: ImageBitmap?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 8.dp),
+            .padding(top = 16.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = scheme.primaryContainer,
-            modifier = Modifier.size(96.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_clash),
-                    contentDescription = null,
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(60.dp),
-                )
-            }
+        if (appIcon != null) {
+            Image(
+                bitmap = appIcon,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(RoundedCornerShape(22.dp)),
+            )
         }
         Text(
             text = "Prizrak-Box",
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = scheme.onSurface,
             modifier = Modifier.padding(top = 12.dp),
         )
-        Surface(
-            shape = CircleShape,
-            color = scheme.surfaceVariant,
-            modifier = Modifier.padding(top = 8.dp),
-        ) {
-            Text(
-                text = "v$appVersion",
-                style = MaterialTheme.typography.labelLarge,
-                color = scheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-            )
-        }
-        Text(
-            text = "core $coreVersion",
-            style = MaterialTheme.typography.labelMedium,
-            color = scheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 6.dp),
+    }
+}
+
+@Composable
+private fun DetailRow(@DrawableRes icon: Int, title: String, value: String, onClick: (() -> Unit)? = null) {
+    if (onClick == null) {
+        ValuePreference(title, value, icon = icon)
+    } else {
+        PreferenceRow(
+            title = title,
+            icon = icon,
+            onClick = onClick,
+            trailing = { Text(value, style = MaterialTheme.typography.bodyLarge) },
         )
     }
 }
 
 @Composable
-private fun ActionButtons(onCheckUpdate: () -> Unit, onChangelog: () -> Unit) {
-    Column(
+private fun ActionRow(@DrawableRes icon: Int, @StringRes title: Int, onClick: () -> Unit) {
+    PreferenceRow(title = stringResource(title), icon = icon, onClick = onClick)
+}
+
+/** The developer in one row: avatar, name, and GitHub's mark and Telegram's plane as round buttons. */
+@Composable
+private fun Developer(onOpenLink: (String) -> Unit) = PreferenceCard {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        FilledTonalButton(onClick = onCheckUpdate, modifier = Modifier.fillMaxWidth()) {
-            Icon(
-                painter = painterResource(R.drawable.ic_mdi_update),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.check_for_updates), maxLines = 1)
-        }
-        FilledTonalButton(onClick = onChangelog, modifier = Modifier.fillMaxWidth()) {
-            Icon(
-                painter = painterResource(R.drawable.ic_baseline_assignment),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.about_changelog), maxLines = 1)
-        }
+        Image(
+            painter = painterResource(R.drawable.ic_dev_avatar),
+            contentDescription = null,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape),
+        )
+        Spacer(Modifier.width(14.dp))
+        Text("legiz", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        IconLink(R.drawable.ic_github_mark, "GitHub") { onOpenLink(URL_GITHUB) }
+        Spacer(Modifier.width(10.dp))
+        IconLink(R.drawable.ic_outline_send, "Telegram") { onOpenLink(URL_TELEGRAM) }
     }
 }
 
+/** A round icon button opening a link, in the text colour. */
 @Composable
-private fun DeveloperCard(onGithub: () -> Unit, onTelegram: () -> Unit) {
+private fun IconLink(@DrawableRes icon: Int, label: String, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    Card(
+    Icon(
+        painter = painterResource(icon),
+        contentDescription = label,
+        tint = scheme.onSurface,
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = scheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // The avatar is a square vector that paints its own brand
-                // backdrop, so it fills the circular crop edge to edge; the
-                // container colour only shows if the drawable fails to load.
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(scheme.primary),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_dev_avatar),
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp).clip(CircleShape),
-                    )
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = "legiz",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = scheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(R.string.about_developer),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = scheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.padding(top = 12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(onClick = onGithub, label = { Text("GitHub") })
-                AssistChip(onClick = onTelegram, label = { Text("Telegram") })
-            }
-        }
-    }
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(scheme.onSurface.copy(alpha = 0.08f))
+            .clickable(onClick = onClick)
+            .padding(9.dp),
+    )
 }
 
+/** A link in the text colour, not the accent: links read like the other rows. */
 @Composable
-private fun LinkRow(
-    @StringRes titleRes: Int,
-    @StringRes urlRes: Int,
-    onOpenLink: (String) -> Unit,
-) {
-    val url = stringResource(urlRes)
+private fun LinkRow(title: String, url: String, onOpenLink: (String) -> Unit) {
     PreferenceRow(
-        title = stringResource(titleRes),
-        summary = url,
+        title = title,
         onClick = { onOpenLink(url) },
+        trailing = {
+            Icon(
+                painter = painterResource(R.drawable.ic_outline_open_in_new),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+        },
     )
 }

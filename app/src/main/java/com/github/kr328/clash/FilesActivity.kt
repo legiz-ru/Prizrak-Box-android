@@ -3,9 +3,9 @@
 package com.github.kr328.clash
 
 import android.content.Intent
-import android.content.res.Configuration
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
@@ -15,10 +15,7 @@ import com.github.kr328.clash.common.util.ticker
 import com.github.kr328.clash.common.util.uuid
 import com.github.kr328.clash.design.R
 import com.github.kr328.clash.design.compose.screen.FilesScreen
-import com.github.kr328.clash.design.compose.theme.ClashTheme
-import com.github.kr328.clash.design.compose.theme.ClashThemeVariant
 import com.github.kr328.clash.design.dialog.requestModelTextInput
-import com.github.kr328.clash.design.model.DarkMode
 import com.github.kr328.clash.design.model.File
 import com.github.kr328.clash.design.util.ValidatorFileName
 import com.github.kr328.clash.remote.FilesClient
@@ -62,7 +59,7 @@ class FilesActivity : BaseActivity() {
         fetch(client, stack, root)
 
         setContent {
-            ClashTheme(variant = currentThemeVariant()) {
+            AppTheme {
                 val files by filesFlow.collectAsStateWithLifecycle()
                 val inBaseDir by inBaseFlow.collectAsStateWithLifecycle()
                 val now by nowFlow.collectAsStateWithLifecycle()
@@ -167,8 +164,12 @@ class FilesActivity : BaseActivity() {
         }
     }
 
-    override fun onBackPressed() {
-        requests.trySend(FilesRequest.PopStack)
+    // Back goes up a folder (the last one closes the screen). Through the
+    // dispatcher: from API 36 the system no longer calls onBackPressed().
+    init {
+        onBackPressedDispatcher.addCallback(this) {
+            requests.trySend(FilesRequest.PopStack)
+        }
     }
 
     private suspend fun requestFileName(name: String): String {
@@ -195,20 +196,5 @@ class FilesActivity : BaseActivity() {
         filesFlow.value = files
         inBaseFlow.value = stack.empty()
         nowFlow.value = System.currentTimeMillis()
-    }
-
-    private fun currentThemeVariant(): ClashThemeVariant {
-        val cfg = resources.configuration
-        return when (uiStore.darkMode) {
-            DarkMode.Auto ->
-                if (cfg.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES) {
-                    ClashThemeVariant.Dark
-                } else {
-                    ClashThemeVariant.Light
-                }
-            DarkMode.ForceLight -> ClashThemeVariant.Light
-            DarkMode.ForceDark -> ClashThemeVariant.Dark
-            DarkMode.AlwaysSummer -> ClashThemeVariant.Summer
-        }
     }
 }

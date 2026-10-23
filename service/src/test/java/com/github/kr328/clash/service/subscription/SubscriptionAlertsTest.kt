@@ -95,6 +95,9 @@ class SubscriptionAlertsTest {
     fun usedPercentHandlesUnknownQuotaAndNegativeUsage() {
         assertNull(SubscriptionAlerts.usedPercent(10, 0))
         assertNull(SubscriptionAlerts.usedPercent(10, -1))
+        // total=1 is an unlimited subscription, not a one-byte quota.
+        assertNull(SubscriptionAlerts.usedPercent(10, 1))
+        assertEquals(500, SubscriptionAlerts.usedPercent(10, 2))
         assertEquals(0, SubscriptionAlerts.usedPercent(-5, 100))
     }
 

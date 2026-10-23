@@ -1,5 +1,8 @@
 package com.github.kr328.clash.design.compose.component
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ButtonDefaults
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -42,6 +45,7 @@ import com.github.kr328.clash.design.R
  * this only ever replaces an ACTION_VIEW that would otherwise fire silently
  * into whatever (if anything) handles it.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun UrlQrDialog(
     title: String,
@@ -61,8 +65,8 @@ fun UrlQrDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = MaterialTheme.shapes.extraLarge,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
             modifier = Modifier.widthIn(max = 680.dp),
         ) {
             Column(
@@ -86,6 +90,7 @@ fun UrlQrDialog(
                         contentDescription = title,
                         modifier = Modifier
                             .size(220.dp)
+                            .clip(MaterialTheme.shapes.large)
                             .background(Color.White)
                             .padding(12.dp),
                     )
@@ -96,9 +101,9 @@ fun UrlQrDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Card(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.large,
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                containerColor = MaterialTheme.colorScheme.surfaceBright,
                             ),
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                             modifier = Modifier.padding(top = 12.dp),
@@ -119,11 +124,12 @@ fun UrlQrDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(top = 28.dp),
                 ) {
-                    OutlinedButton(onClick = onCopyLink) {
+                    OutlinedButton(onClick = onCopyLink, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(R.string.tv_url_qr_copy))
                     }
                     Button(
                         onClick = onDismiss,
+                        shapes = ButtonDefaults.shapes(),
                         modifier = Modifier.focusRequester(closeFocus),
                     ) {
                         Text(stringResource(R.string.close))

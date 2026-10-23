@@ -40,6 +40,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.kr328.clash.core.model.Rule
 import com.github.kr328.clash.design.R
+import com.github.kr328.clash.design.compose.component.BusyIndicator
+import com.github.kr328.clash.design.compose.component.EmptyState
+import com.github.kr328.clash.design.compose.component.ExpressiveScaffold
+import com.github.kr328.clash.design.compose.component.PreferenceCard
+import com.github.kr328.clash.design.compose.component.PreferenceList
+import com.github.kr328.clash.design.compose.component.listPadding
 
 private val DirectGreen = Color(0xFF4CAF50)
 private val RejectRed = Color(0xFFF44336)
@@ -55,69 +61,40 @@ fun RulesScreen(
     rules: List<Rule>,
     loading: Boolean,
     error: Pair<String, String>?,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
 ) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.rules)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_baseline_arrow_back),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    actions = {
-                        if (!loading && error == null) {
-                            Text(
-                                text = rules.size.toString(),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(end = 16.dp),
-                            )
-                        }
-                    },
-                )
-            },
-        ) { inner ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(inner),
-                contentAlignment = Alignment.Center,
-            ) {
-                when {
-                    loading -> CircularProgressIndicator(strokeWidth = 2.dp)
-                    error != null -> Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 32.dp),
-                    ) {
-                        Text(
-                            text = error.first,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                        )
-                        Text(
-                            text = error.second,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                    }
-                    rules.isEmpty() -> Text(
-                        text = stringResource(R.string.no_rules),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    ExpressiveScaffold(
+        title = stringResource(R.string.rules),
+        subtitle = if (!loading && error == null) rules.size.toString() else null,
+        onBack = onBack,
+    ) { inner ->
+        when {
+            loading -> Box(Modifier.fillMaxSize().padding(inner), contentAlignment = Alignment.Center) {
+                BusyIndicator(size = 48.dp)
+            }
+            error != null -> Box(Modifier.fillMaxSize().padding(inner), contentAlignment = Alignment.Center) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                ) {
+                    Text(
+                        text = error.first,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
                     )
-                    else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(items = rules) { rule -> RuleRow(rule) }
-                    }
+                    Text(
+                        text = error.second,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
+            }
+            rules.isEmpty() -> EmptyState(stringResource(R.string.no_rules), inner)
+            else -> PreferenceList(modifier = Modifier.fillMaxSize(), contentPadding = listPadding(inner)) {
+                items(rules) { rule -> RuleRow(rule) }
             }
         }
     }
@@ -135,17 +112,11 @@ private fun RuleRow(rule: Rule) {
     // list on TV; the focused row gets a primary outline.
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 3.dp)
-            .focusable(interactionSource = source),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = scheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    PreferenceCard(
+        modifier = Modifier.focusable(interactionSource = source),
         border = if (focused) BorderStroke(2.dp, scheme.primary) else null,
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = rule.type,

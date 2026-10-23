@@ -4,26 +4,27 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import com.github.kr328.clash.common.store.Store
+import com.github.kr328.clash.common.util.TvUtils
 import com.github.kr328.clash.common.store.asStoreProvider
 import com.github.kr328.clash.core.model.ProxySort
 import com.github.kr328.clash.design.model.AppInfoSort
+import com.github.kr328.clash.design.compose.background.HomeBackgroundStyle
+import com.github.kr328.clash.design.compose.theme.AccentChoice
 import com.github.kr328.clash.design.model.DarkMode
 
 class UiStore(context: Context) {
-    private val store = Store(
-        context
-            .getSharedPreferences(PREFERENCE_NAME, Context.MODE_PRIVATE)
-            .asStoreProvider()
-    )
+    private val preferences = context.getSharedPreferences(PREFERENCE_NAME, Context.MODE_PRIVATE)
+    private val store = Store(preferences.asStoreProvider())
 
     var enableVpn: Boolean by store.boolean(
         key = "enable_vpn",
         defaultValue = true
     )
 
+    /** Settings → Interface → Theme: dark on Android TV, the system's elsewhere, unless chosen. */
     var darkMode: DarkMode by store.enum(
         key = "dark_mode",
-        defaultValue = DarkMode.Auto,
+        defaultValue = if (TvUtils.isTv(context)) DarkMode.ForceDark else DarkMode.Auto,
         values = DarkMode.values()
     )
 
@@ -110,9 +111,38 @@ class UiStore(context: Context) {
         defaultValue = true,
     )
 
-    var summerModeUnlocked: Boolean by store.boolean(
-        key = "summer_mode_unlocked",
+    /** Settings → Visual → Accent Color: an [AccentChoice] name; the profile's colour by default. */
+    var accentChoice: AccentChoice by store.enum(
+        key = "accent_choice",
+        defaultValue = AccentChoice.Profile,
+        values = AccentChoice.entries.toTypedArray(),
+    )
+
+    /** Personalisation: the colour saved there, "RRGGBB". */
+    var accentCustomHex: String by store.string(
+        key = "accent_custom_hex",
+        defaultValue = AccentChoice.DEFAULT_CUSTOM_HEX,
+    )
+
+    /** Personalisation → Palette: grid or spectrum, as last left. */
+    var accentPaletteSpectrum: Boolean by store.boolean(
+        key = "accent_palette_spectrum",
         defaultValue = false,
+    )
+
+    /** Settings → Visual → Home Background: a [HomeBackgroundStyle] id; Topography by default. */
+    var homeBackground: String by store.string(
+        key = "home_background",
+        defaultValue = HomeBackgroundStyle.DEFAULT.id,
+    )
+
+    /**
+     * Settings → Visual → Profile Theme: whether the active profile's
+     * `pxa-theme` applies. One switch for the whole app, on by default.
+     */
+    var useProfileTheme: Boolean by store.boolean(
+        key = "use_profile_theme",
+        defaultValue = true,
     )
 
     /**
@@ -121,10 +151,50 @@ class UiStore(context: Context) {
      * "Not now", cleared never. The point is to ask exactly once, at the first
      * connect attempt, instead of blindly on every cold start.
      */
+    /**
+     * Settings → Service → Release UI in Background: while the VPN runs, the
+     * app's screens close when it goes to the background (the VPN lives in
+     * its own process), so the app holds less memory.
+     */
+    var releaseUiInBackground: Boolean by store.boolean(
+        key = "release_ui_in_background",
+        defaultValue = false,
+    )
+
     var notificationsAsked: Boolean by store.boolean(
         key = "notifications_asked",
         defaultValue = false,
     )
+
+    /** Debug → Partial Reset → Language, theme…: Settings → Visual as on a fresh install. */
+    fun resetAppearance() {
+        preferences.edit()
+            .remove("dark_mode")
+            .remove("delay_display_dots")
+            .remove("proxy_line")
+            .remove("accent_choice")
+            .remove("accent_custom_hex")
+            .remove("accent_palette_spectrum")
+            .remove("home_background")
+            .remove("use_profile_theme")
+            .apply()
+    }
+
+    /** Debug → Partial Reset → Sorting: node order (every profile's own) and the last opened group. */
+    fun resetProxySorting() {
+        val editor = preferences.edit().remove("proxy_sort").remove("proxy_last_group")
+        preferences.all.keys.filter { it.startsWith("proxy_sort_") }.forEach(editor::remove)
+        editor.apply()
+    }
+
+    /** Debug → Partial Reset → Sorting: the order of the app list in access control. */
+    fun resetAccessControlSorting() {
+        preferences.edit()
+            .remove("access_control_sort")
+            .remove("access_control_reverse")
+            .remove("access_control_system_app")
+            .apply()
+    }
 
     companion object {
         private const val PREFERENCE_NAME = "ui"

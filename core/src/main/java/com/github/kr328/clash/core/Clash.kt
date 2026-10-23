@@ -24,6 +24,12 @@ object Clash {
         encodeDefaults = false
     }
 
+    // The core sends "connections": null when there are none: the empty list then.
+    private val ConnectionsJson = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
+
     fun reset() {
         Bridge.nativeReset()
     }
@@ -298,7 +304,7 @@ object Clash {
     }
 
     fun queryConnections(): ConnectionSnapshot {
-        return Json.Default.decodeFromString(
+        return ConnectionsJson.decodeFromString(
             ConnectionSnapshot.serializer(),
             Bridge.nativeQueryConnections()
         )
@@ -315,6 +321,15 @@ object Clash {
      */
     fun setAgeSecretKeys(keys: String) {
         Bridge.nativeSetAgeSecretKeys(keys)
+    }
+
+    /**
+     * Debug → Zashboard: the controller the next load opens, the only one —
+     * the profile's and Override's controller settings give way to it. An
+     * empty [addr] hands the controller back to them.
+     */
+    fun setZashboardController(addr: String, secret: String) {
+        Bridge.nativeSetZashboardController(addr, secret)
     }
 
     /**

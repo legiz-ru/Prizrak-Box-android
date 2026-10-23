@@ -1,12 +1,23 @@
 package com.github.kr328.clash.design.dialog
 
 import android.content.Context
-import android.widget.TextView
 import com.github.kr328.clash.core.model.FetchStatus
 import com.github.kr328.clash.design.R
-import com.github.kr328.clash.design.util.layoutInflater
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.progressindicator.LinearProgressIndicator
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.github.kr328.clash.design.compose.dialog.ExpressiveDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -53,36 +64,58 @@ interface ModelProgressBarScope {
     suspend fun configure(block: suspend ModelProgressBarConfigure.() -> Unit)
 }
 
+/**
+ * A dialog that cannot be dismissed while [block] runs: a line of text over
+ * Material 3 Expressive's wavy progress — moving on its own until there is a
+ * count, then filling with it.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 suspend fun Context.withModelProgressBar(block: suspend ModelProgressBarScope.() -> Unit) {
-    val view = layoutInflater.inflate(R.layout.dialog_fetch_status, null)
-    val progressIndicator = view.findViewById<LinearProgressIndicator>(R.id.progress_indicator)
-    val textView = view.findViewById<TextView>(R.id.text)
+    var indeterminate by mutableStateOf(true)
+    var label by mutableStateOf<String?>(null)
+    var value by mutableIntStateOf(0)
+    var total by mutableIntStateOf(100)
 
-    val dialog = MaterialAlertDialogBuilder(this)
-        .setCancelable(false)
-        .setView(view)
-        .show()
+    val dialog = withContext(Dispatchers.Main) {
+        ExpressiveDialog.Builder(this@withModelProgressBar)
+            .setCancelable(false)
+            .setContent {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(label.orEmpty(), style = MaterialTheme.typography.bodyLarge)
+                    if (indeterminate) {
+                        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    } else {
+                        val shown by animateFloatAsState(
+                            if (total > 0) (value.toFloat() / total).coerceIn(0f, 1f) else 0f,
+                            label = "progress",
+                        )
+                        LinearWavyProgressIndicator(progress = { shown }, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            }
+            .show()
+    }
 
     val configureImpl = object : ModelProgressBarConfigure {
         override var isIndeterminate: Boolean
-            get() = progressIndicator.isIndeterminate
-            set(value) {
-                progressIndicator.isIndeterminate = value
+            get() = indeterminate
+            set(v) {
+                indeterminate = v
             }
         override var text: String?
-            get() = textView.text?.toString()
-            set(value) {
-                textView.text = value
+            get() = label
+            set(v) {
+                label = v
             }
         override var progress: Int
-            get() = progressIndicator.progress
-            set(value) {
-                progressIndicator.setProgressCompat(value, true)
+            get() = value
+            set(v) {
+                value = v
             }
         override var max: Int
-            get() = progressIndicator.max
-            set(value) {
-                progressIndicator.max = value
+            get() = total
+            set(v) {
+                total = v
             }
     }
 
@@ -97,6 +130,6 @@ suspend fun Context.withModelProgressBar(block: suspend ModelProgressBarScope.()
     try {
         scopeImpl.block()
     } finally {
-        dialog.dismiss()
+        withContext(Dispatchers.Main + kotlinx.coroutines.NonCancellable) { dialog.dismiss() }
     }
 }

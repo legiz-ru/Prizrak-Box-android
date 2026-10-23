@@ -1,5 +1,8 @@
 package com.github.kr328.clash.design.compose.screen
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LoadingIndicator
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +43,7 @@ import com.github.kr328.clash.design.R
  * restyled to MD3E). Shows a QR code + IP/port for the local import server, or
  * a status message (no Wi-Fi / received), with a cancel action.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TvImportScreen(
     qr: Bitmap?,
@@ -54,7 +58,7 @@ fun TvImportScreen(
     // by default so the remote always has a target.
     LaunchedEffect(Unit) { runCatching { cancelFocus.requestFocus() } }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainer) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -91,7 +95,7 @@ fun TvImportScreen(
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            CircularProgressIndicator(modifier = Modifier.padding(top = 24.dp))
+                            LoadingIndicator(modifier = Modifier.padding(top = 24.dp).size(48.dp))
                         }
                     }
                     else -> {
@@ -108,7 +112,7 @@ fun TvImportScreen(
                             )
                             Column(modifier = Modifier.widthIn(max = 360.dp)) {
                                 Card(
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = MaterialTheme.shapes.large,
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                                     ),
@@ -143,6 +147,7 @@ fun TvImportScreen(
             }
 
             OutlinedButton(
+                shapes = ButtonDefaults.shapes(),
                 onClick = onCancel,
                 modifier = Modifier
                     .padding(top = 16.dp)
