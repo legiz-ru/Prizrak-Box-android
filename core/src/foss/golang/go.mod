@@ -145,7 +145,7 @@ require (
 
 replace cfa => ../../main/golang
 
-replace github.com/metacubex/mihomo => github.com/legiz-ru/Prizrak-Core v1.19.33-r1
+replace github.com/metacubex/mihomo => github.com/legiz-ru/Prizrak-Core v1.19.33-r2
 
 replace github.com/metacubex/utls => github.com/legiz-ru/prizrak-utls v0.0.0-20261022072945-d5656b84bb52
 
