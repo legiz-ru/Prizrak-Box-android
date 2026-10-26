@@ -8,6 +8,12 @@ data class ConnectionGroup(
     val appName: String,
     val icon: Drawable?,
     val connections: List<Connection>,
+    /** Bytes per second now, from the last two snapshots (open connections only). */
     val uploadSpeed: Long,
     val downloadSpeed: Long,
+    /** Bytes so far over the group's connections. */
+    val uploadTotal: Long,
+    val downloadTotal: Long,
+    /** Open connections: the row shows the speed; closed ones show what they moved. */
+    val live: Boolean,
 )

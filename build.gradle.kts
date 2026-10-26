@@ -81,8 +81,8 @@ subprojects {
             minSdk = 24
             targetSdk = 36
 
-            versionName = "1.1"
-            versionCode = 101
+            versionName = "2.0.0-rc01"
+            versionCode = 200000
 
             resValue("string", "release_name", "v$versionName")
             resValue("integer", "release_code", "$versionCode")
@@ -145,9 +145,7 @@ subprojects {
             create("meta") {
 
                 dimension = flavorDimensionList[0]
-                if (!removeSuffix) {
-                    versionNameSuffix = ".Meta"
-                }
+                // The released build: its version is the plain one (2.0.0), no ".Meta".
 
                 buildConfigField("boolean", "PREMIUM", "Boolean.parseBoolean(\"false\")")
 

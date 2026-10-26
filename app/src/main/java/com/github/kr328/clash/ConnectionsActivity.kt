@@ -41,6 +41,13 @@ class ConnectionsSection(activity: BaseActivity, close: () -> Unit) : SettingsSe
     private val cachingFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
 
     private var lastSnapshot = ConnectionSnapshot()
+    // The previous poll's byte counts, overall and per connection, and when it came:
+    // the speeds are the difference over the time between two polls.
+    private var lastPollAt = 0L
+    private var lastUploadTotal = -1L
+    private var lastDownloadTotal = -1L
+    private var lastBytes: Map<String, Pair<Long, Long>> = emptyMap()
+    private var connectionRates: Map<String, Pair<Long, Long>> = emptyMap()
     private var closedConnections: List<Connection> = emptyList()
     private val closedIds = mutableSetOf<String>()
     private var currentFilter = ""
@@ -87,6 +94,25 @@ class ConnectionsSection(activity: BaseActivity, close: () -> Unit) : SettingsSe
     }
 
     private suspend fun updateSnapshot(snapshot: ConnectionSnapshot) {
+        // Speeds from what moved since the last poll (also while paused, so resuming
+        // does not show one long interval as a burst). The core reports byte totals.
+        val now = android.os.SystemClock.elapsedRealtime()
+        val seconds = (now - lastPollAt) / 1000.0
+        val first = lastUploadTotal < 0 || seconds <= 0.0
+        fun rate(current: Long, previous: Long): Long =
+            if (first) 0 else ((current - previous).coerceAtLeast(0) / seconds).toLong()
+        val totalUp = rate(snapshot.uploadTotal, lastUploadTotal)
+        val totalDown = rate(snapshot.downloadTotal, lastDownloadTotal)
+        // A connection opened since the last poll moved all of its bytes in that time.
+        connectionRates = snapshot.connections.associate { c ->
+            val (up, down) = lastBytes[c.id] ?: (0L to 0L)
+            c.id to (rate(c.upload, up) to rate(c.download, down))
+        }
+        lastBytes = snapshot.connections.associate { it.id to (it.upload to it.download) }
+        lastUploadTotal = snapshot.uploadTotal
+        lastDownloadTotal = snapshot.downloadTotal
+        lastPollAt = now
+
         if (pausedFlow.value) return
 
         val activeIds = snapshot.connections.map { it.id }.toSet()
@@ -103,9 +129,10 @@ class ConnectionsSection(activity: BaseActivity, close: () -> Unit) : SettingsSe
 
         lastSnapshot = snapshot
 
-        speedFlow.value = "↑ ${snapshot.uploadTotal.toBytesString()}/s  ↓ ${snapshot.downloadTotal.toBytesString()}/s"
+        // The speed now; it was the session's byte totals with "/s" after them.
+        speedFlow.value = "↑ ${totalUp.toBytesString()}/s  ↓ ${totalDown.toBytesString()}/s"
 
-        activeGroupsFlow.value = filterGroups(buildGroups(snapshot.connections))
+        activeGroupsFlow.value = filterGroups(buildGroups(snapshot.connections, live = true))
     }
 
     private fun toggleCache() {
@@ -133,7 +160,7 @@ class ConnectionsSection(activity: BaseActivity, close: () -> Unit) : SettingsSe
     private fun filterChange(filter: String) {
         currentFilter = filter
         activity.launch {
-            activeGroupsFlow.value = filterGroups(buildGroups(lastSnapshot.connections))
+            activeGroupsFlow.value = filterGroups(buildGroups(lastSnapshot.connections, live = true))
             closedGroupsFlow.value = filterGroups(buildGroups(closedConnections))
         }
     }
@@ -156,7 +183,8 @@ class ConnectionsSection(activity: BaseActivity, close: () -> Unit) : SettingsSe
         ).any { it.contains(q, ignoreCase = true) }
     }
 
-    private suspend fun buildGroups(connections: List<Connection>): List<ConnectionGroup> {
+    private suspend fun buildGroups(connections: List<Connection>, live: Boolean = false): List<ConnectionGroup> {
+        val rates = connectionRates
         val pm = activity.packageManager
         val appPackage = activity.packageName
         return withContext(Dispatchers.Default) {
@@ -170,14 +198,21 @@ class ConnectionsSection(activity: BaseActivity, close: () -> Unit) : SettingsSe
                     val name = if (isPrizrak) activity.getString(com.github.kr328.clash.design.R.string.prizrak_core_name)
                     else runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrElse { pkg }
 
-                    val upSpeed = conns.sumOf { it.upload }
-                    val downSpeed = conns.sumOf { it.download }
+                    val upSpeed = if (live) conns.sumOf { rates[it.id]?.first ?: 0L } else 0L
+                    val downSpeed = if (live) conns.sumOf { rates[it.id]?.second ?: 0L } else 0L
 
-                    ConnectionGroup(pkg, name, icon, conns, upSpeed, downSpeed)
+                    ConnectionGroup(
+                        pkg, name, icon, conns, upSpeed, downSpeed,
+                        uploadTotal = conns.sumOf { it.upload },
+                        downloadTotal = conns.sumOf { it.download },
+                        live = live,
+                    )
                 }
+                // The busiest now first, then by what they moved.
                 .sortedWith(
                     compareByDescending<ConnectionGroup> { it.packageName.isEmpty() }
                         .thenByDescending { it.uploadSpeed + it.downloadSpeed }
+                        .thenByDescending { it.uploadTotal + it.downloadTotal }
                 )
         }
     }

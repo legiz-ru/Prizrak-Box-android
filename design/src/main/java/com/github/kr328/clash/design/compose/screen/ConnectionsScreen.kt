@@ -175,7 +175,13 @@ private fun ConnectionGroupRow(group: ConnectionGroup, onClick: () -> Unit) {
     }
     PreferenceRow(
         title = group.appName,
-        summary = "↑ ${group.uploadSpeed.toBytesString()}/s  ↓ ${group.downloadSpeed.toBytesString()}/s",
+        // Open connections: their speed now. Closed ones: what they moved (it was the
+        // byte totals of the open ones with "/s" after them — gigabytes "per second").
+        summary = if (group.live) {
+            "↑ ${group.uploadSpeed.toBytesString()}/s  ↓ ${group.downloadSpeed.toBytesString()}/s"
+        } else {
+            "↑ ${group.uploadTotal.toBytesString()}  ↓ ${group.downloadTotal.toBytesString()}"
+        },
         onClick = onClick,
         leading = {
             if (painter != null) {
